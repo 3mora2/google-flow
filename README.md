@@ -1,201 +1,192 @@
-﻿# Flow Image CLI
+# Flow Image Local API
 
 Chinese README: [README-zh.md](./README-zh.md)
 
-Flow image generation command-line tool, supporting:
+This repository packages `flow-image-cli` into a cleaner local deployment that exposes an OpenAI-compatible image API.
 
-- Text-to-image / Image-to-image
-- 2K / 4K upscaling
-- Auto downgrade to original image on upscale failure with guaranteed save
-- Local browser captcha (`personal`)
-- Local token receiver service (works with `flow-token-updater` extension for automatic ST sync)
+The intended flow is simple:
 
-> Project Notes:
-> - This project is inspired by [Flow2API](https://github.com/TheSmallHanCat/flow2api).
-> - `flow-token-updater` is inspired by [Flow2API-Token-Updater](https://github.com/TheSmallHanCat/Flow2API-Token-Updater).
+1. Run `install.bat`
+2. Run `start-flow-api.bat`
+3. Sign in to Google Flow in the browser window that opens
+4. Wait for `/setup` to finish and copy the final `URL`, `API Key`, and `Model`
 
-## Project Positioning
+No browser extension is required.
 
-This repository is a lightweight, image-focused implementation for local use:
+## What This Repo Includes
 
-- Focuses on Flow image generation workflow (ST/AT, generate, optional upscale)
-- Designed as CLI + local helper tools, not a full platform service
+- Local OpenAI-compatible API service
+- Guided setup page at `/setup`
+- Automatic Flow login detection and token sync
+- Text-to-image and image-to-image generation
+- 1K / 2K / 4K output selection
+- Aspect ratio mapping for `1:1`, `9:16`, `16:9`, and `21:9`
+- Playwright-based local browser flow for Flow login / captcha handling
 
-## Prerequisites
+## Requirements
 
-- Must be able to sign in to Google Flow: <https://labs.google/fx>
-- Account must have image generation permissions (otherwise cannot generate images)
-- For `-u 4k`, account must have corresponding subscription/permissions (429/quota errors common without permissions)
+- Windows
+- Python 3.10 or newer
+- A Google account that can access Flow: <https://labs.google/fx>
+- Flow image generation permission on that account
 
-## Project Structure
+## Quick Start
 
-```text
-flow-image-cli/
-├── flow_cli/                # CLI main code
-├── flow-token-updater/      # Browser extension
-├── flow_token_server.py     # Local token receiver service
-├── config.toml              # Config template
-└── README.md
+### 1. Install
+
+Double-click:
+
+```bat
+install.bat
 ```
 
-## Environment Requirements
+What it does:
 
-- Python 3.9+
-- Chrome (for extension and personal mode)
-- Access to Google Flow: <https://labs.google/fx>
+- Creates `.venv`
+- Installs Python dependencies
+- Installs the project in editable mode
+- Installs Playwright Chromium
 
-## Installation
+### 2. Start
 
-### 1) Install Python dependencies
+Double-click:
+
+```bat
+start-flow-api.bat
+```
+
+This starts the local server and opens:
+
+- Setup page: `http://127.0.0.1:8787/setup`
+- API base URL: `http://127.0.0.1:8787/v1`
+
+### 3. Complete Setup
+
+On the setup page:
+
+1. Sign in to Google Flow when the browser opens
+2. Wait for the local service to detect the login
+3. Let the service finish token sync automatically
+4. Copy the displayed API information card
+
+The setup page provides:
+
+- `Open Login`
+- `Re-sync`
+- `Reset Config`
+- Human-readable API result cards instead of raw JSON
+
+## API Information
+
+Default local configuration:
+
+- Base URL: `http://127.0.0.1:8787/v1`
+- API Key: `flow-local-key`
+
+You can change the API key by setting:
+
+```powershell
+$env:FLOW_API_KEY="your-own-key"
+```
+
+## Supported Endpoints
+
+- `GET /health`
+- `GET /setup`
+- `GET /setup/status`
+- `POST /setup/open-login`
+- `POST /setup/finalize`
+- `POST /setup/reset`
+- `GET /v1/models`
+- `POST /v1/images/generations`
+- `POST /v1/images/edits`
+- `POST /v1/chat/completions`
+- `GET /v1/files/{filename}`
+
+## Model Usage
+
+Examples of direct model IDs:
+
+- `gemini-3.1-flash-image-landscape`
+- `gemini-3.1-flash-image-portrait`
+- `gemini-3.1-flash-image-square`
+- `gemini-3.0-pro-image-landscape`
+- `imagen-4.0-generate-preview-landscape`
+- `nano-banana-2-landscape`
+- `nano-banana-2-portrait`
+- `nano-banana-2-square`
+- `nano-banana-2-ultrawide`
+- `nano-banana-pro-landscape`
+- `nano-banana-pro-portrait`
+- `nano-banana-pro-square`
+
+Family aliases also work:
+
+- `gemini-3.1-flash-image`
+- `gemini-3.0-pro-image`
+- `imagen-4.0-generate-preview`
+- `nano banana2`
+- `nano banana pro`
+
+Important note:
+
+- Only `nano banana2` supports `21:9`
+
+## Size And Aspect Ratio Mapping
+
+The compatible API accepts either standard image size hints or friendly values from third-party tools.
+
+Size mapping:
+
+- `1K` -> original output
+- `2K` -> 2K upscale
+- `4K` -> 4K upscale
+- `1024x1024` -> square
+- `1024x1536` -> portrait
+- `1536x1024` -> landscape
+
+Aspect ratio mapping:
+
+- `1:1` -> square
+- `9:16` -> portrait
+- `16:9` -> landscape
+- `21:9` -> ultrawide, `nano banana2` only
+
+Quality mapping:
+
+- `standard` -> original
+- `hd` or `2k` -> 2K upscale
+- `4k` -> 4K upscale
+
+The wrapper also reads friendly prompt hints such as:
+
+- `Preferred size: 4K`
+- `Preferred aspect ratio: 9:16`
+
+## Example Requests
+
+Text-to-image:
 
 ```bash
-cd flow-image-cli
-pip install -r requirements.txt
-pip install -e .
+curl http://127.0.0.1:8787/v1/images/generations ^
+  -H "Authorization: Bearer flow-local-key" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"model\":\"gemini-3.1-flash-image\",\"prompt\":\"a cinematic cat\",\"size\":\"1536x1024\",\"quality\":\"hd\",\"response_format\":\"url\"}"
 ```
 
-### 2) Install Playwright (required for personal captcha mode)
+Image-to-image:
 
 ```bash
-pip install playwright
-python -m playwright install chromium
+curl http://127.0.0.1:8787/v1/images/edits ^
+  -H "Authorization: Bearer flow-local-key" ^
+  -F "model=gemini-3.1-flash-image" ^
+  -F "prompt=convert to watercolor" ^
+  -F "size=1024x1024" ^
+  -F "quality=2k" ^
+  -F "image=@input.jpg"
 ```
 
-### 3) Start local token receiver service (recommended)
-
-```bash
-python flow_token_server.py
-```
-
-Default address: `http://127.0.0.1:8765/token`
-
-## Recommended Token Flow: flow-token-updater
-
-Highly recommended to use the built-in `flow-token-updater` extension to automatically maintain ST, avoiding manual copy/paste.
-
-### Extension Installation
-
-1. Open `chrome://extensions/`
-2. Enable Developer mode
-3. Click "Load unpacked"
-4. Select: `/flow-image-cli/flow-token-updater`
-
-### Extension Configuration
-
-1. Open extension popup
-2. Set server URL to `http://127.0.0.1:8765/token`
-3. Save config and click "Fetch Now"
-
-After obtaining ST, CLI will automatically use the `st` field from `~/.flow-cli/token.json`.
-
-## Configuration
-
-Config path: `~/.flow-cli/config.toml`
-
-```toml
-[flow]
-labs_base_url = "https://labs.google/fx/api"
-api_base_url = "https://aisandbox-pa.googleapis.com/v1"
-timeout = 120
-max_retries = 3
-
-[output]
-output_dir = "output"
-
-[captcha]
-method = "personal" # personal / none
-personal_headless = true
-personal_timeout = 90
-personal_settle_seconds = 2.0
-
-[debug]
-enabled = false
-```
-
-Token path: `~/.flow-cli/token.json`
-
-## Captcha Mode
-
-Supported `captcha.method` values:
-
-- `personal`: Solve captcha using local browser (requires Playwright)
-- `none`: Do not actively solve captcha (may fail when captcha is required)
-
-This simplified project does not include built-in third-party captcha providers (such as YesCaptcha/CapMonster/Capsolver) by default.
-Default `personal_headless = true` (silent headless, no browser popup); set to `false` only when visual debugging is needed.
-
-## Interactive Script
-
-Provides an interactive Python script for terminal configuration:
-
-```bash
-python interactive_generate.py
-```
-
-Supports interactive configuration:
-
-- Prompt
-- Model (index or model name)
-- Output path
-- Reference image path
-- Upscale option (`none/2k/4k`)
-- Language mode (`中文 / English / 双语`)
-
-Default output path uses timestamp template: `output/flow_{timestamp}.png` (auto-expands timestamp to avoid overwriting).
-
-## CLI Usage
-
-> Usage Notes:
-> - First ensure you can log in to Flow and your account has image generation permissions before running CLI.
-> - `-u 4k` is not available for all accounts; requires corresponding subscription/permissions.
-
-### Login (manual)
-
-```bash
-flow-cli login --st "your-session-token"
-```
-
-### Basic Commands
-
-```bash
-flow-cli models
-flow-cli credits
-flow-cli config
-```
-
-### Text-to-image / Image-to-image
-
-```bash
-# Text-to-image
-flow-cli gen "a cinematic cat in neon city"
-
-# Specify model and output
-flow-cli gen "mountain landscape" -m gemini-3.1-flash-image-landscape -o output\landscape.png
-
-# Image-to-image
-flow-cli gen "convert to watercolor style" -r input.jpg -o output\watercolor.png
-```
-
-### 2K / 4K Upscale
-
-```bash
-# Generate then upscale to 2K
-flow-cli gen "a cat" -m gemini-3.1-flash-image-landscape -u 2k -o output\cat_2k.png
-
-# Generate then upscale to 4K
-flow-cli gen "a cat" -m gemini-3.1-flash-image-landscape -u 4k -o output\cat_4k.png
-```
-
-Parameters:
-
-- `-u, --upscale`: `none` / `2k` / `4k`
-
-Note:
-- When `2k/4k` upscale fails, the program automatically downgrades to original image and saves to `-o` specified path.
-
-## Python API Examples
-
-### 1) Text-to-image
+Python example:
 
 ```python
 import asyncio
@@ -213,136 +204,26 @@ async def main():
 asyncio.run(main())
 ```
 
-### 2) Image-to-image + 2K
+More request examples are in [API_USAGE.md](./API_USAGE.md).
 
-```python
-import asyncio
-from pathlib import Path
-from flow_cli.client import ImageGenerator
+## Project Layout
 
-async def main():
-    g = ImageGenerator()
-    path = await g.generate(
-        prompt="convert to watercolor",
-        model="gemini-3.1-flash-image-landscape",
-        reference_image=Path("input.jpg").read_bytes(),
-        output_path="output/api_img2img_2k.png",
-        upscale="2k",
-    )
-    print(path)
-
-asyncio.run(main())
+```text
+flow-image-cli/
+├── flow_cli/              # Core CLI + local API server
+├── install.bat            # One-click installer
+├── start-flow-api.bat     # One-click launcher
+├── API_USAGE.md           # Compatible API examples
+└── README.md
 ```
 
-## Local Token Server API
+## Notes
 
-`flow_token_server.py` provides local HTTP interface for extension or script calls.
-
-### 1) Health check
-
-```bash
-curl http://127.0.0.1:8765/health
-```
-
-Response:
-
-```json
-{"status":"ok"}
-```
-
-### 2) Query current token status
-
-```bash
-curl http://127.0.0.1:8765/token
-```
-
-Response:
-
-```json
-{"has_token": true, "token_length": 2147}
-```
-
-### 3) Write session_token
-
-```bash
-curl -X POST http://127.0.0.1:8765/token ^
-  -H "Content-Type: application/json" ^
-  -d "{\"session_token\":\"your-st-token\"}"
-```
-
-Response:
-
-```json
-{"success":true,"message":"Token saved to ...","token_length":2147}
-```
-
-## FAQ
-
-### Q1: Can I get 2K images?
-
-Yes. Use `-u 2k`.
-`-u 4k` requires account to have corresponding subscription/permissions.
-On upscale failure, it automatically downgrades to original image and saves it.
-
-### Q2: What to do if `reCAPTCHA evaluation failed`?
-
-1. Ensure `captcha.method = "personal"`
-2. Ensure Playwright + Chromium is installed
-3. Ensure browser can access and is logged into Google Flow
-
-### Q3: What to do if 401/500 errors occur?
-
-- 401: Usually AT expired, program will auto-refresh and retry
-- 500: Upstream occasional issue, recommend retry or switch model (prefer `gemini-3.1-flash-image-*`)
-
-### Q4: Config file location and method settings not taking effect?
-
-The CLI reads config from `~/.flow-cli/config.toml` (user's home directory), NOT from the project root `config.toml`.
-
-**Solutions:**
-1. Copy your config to the default location:
-   ```bash
-   mkdir -p ~/.flow-cli
-   cp <your-project-path>/config.toml ~/.flow-cli/config.toml
-   ```
-2. Or use environment variable:
-   ```bash
-   export FLOW_CONFIG=/path/to/your/config.toml
-   ```
-
-### Q5: How to update/login with new Session Token?
-
-```bash
-flow-cli login --st "your-new-session-token"
-```
-
-You can get ST from Flow Token browser extension.
-
-### Q6: Playwright/browser issues in personal captcha mode?
-
-1. Install Playwright: `pip install playwright && python -m playwright install chromium`
-2. If browser doesn't open automatically, check if another Chrome instance is using the profile
-3. For headless mode issues, try setting `personal_headless = false` in config
-4. Browser profile is stored at `~/.flow-cli/browser-profile`
-
-### Q7: Image generation succeeded but file not saved?
-
-- Check if output directory exists and is writable
-- Ensure sufficient disk space
-- Check debug logs for more details (set `debug.enabled = true` in config)
-
-## Security Tips
-
-- Do not commit ST/AT to repository
-- Do not expose full tokens in chat/screenshots
-- `~/.flow-cli/token.json` recommended for local use only
-
-## Related Links
-
-- Google Flow: <https://labs.google/fx/tools/flow>
-- Flow2API: <https://github.com/TheSmallHanCat/flow2api>
-- Flow2API-Token-Updater: <https://github.com/TheSmallHanCat/Flow2API-Token-Updater>
+- This repository is intended for local deployment on your own machine or another Windows PC.
+- The user only needs to complete Google Flow login.
+- The remaining setup is handled by the local service.
+- If the account does not have Flow image access or upscale permissions, generation or 4K output may fail upstream.
 
 ## License
 
-MIT. See [LICENSE](./LICENSE).
+MIT

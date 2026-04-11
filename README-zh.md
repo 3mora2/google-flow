@@ -1,181 +1,192 @@
-# Flow Image CLI
+# Flow Image 本地 API
 
 English README: [README.md](./README.md)
 
-Flow 图片生成命令行工具，支持：
+这个仓库把 `flow-image-cli` 整理成了一个更适合本地部署和分享给别人使用的版本，对外提供 OpenAI 兼容图片 API。
 
+推荐使用流程很简单：
+
+1. 双击 `install.bat`
+2. 双击 `start-flow-api.bat`
+3. 在自动打开的浏览器里登录 Google Flow
+4. 等 `/setup` 页面自动完成，复制最终显示的 `URL`、`API Key`、`Model`
+
+不需要浏览器插件。
+
+## 这个版本包含什么
+
+- 本地 OpenAI 兼容 API 服务
+- `/setup` 引导完成页
+- 自动检测 Flow 登录并同步令牌
 - 文生图 / 图生图
-- 2K / 4K 放大（`-u 2k` / `-u 4k`）
-- 放大失败自动降级为原图并保底保存
-- 本机浏览器验证码模式（`personal`）
-- 本地 Token 接收服务（配合 `flow-token-updater`）
+- 1K / 2K / 4K 输出选择
+- `1:1`、`9:16`、`16:9`、`21:9` 比例映射
+- 基于 Playwright 的本地浏览器登录 / 验证码处理流程
 
-> 项目说明：
-> - 本项目受 [Flow2API](https://github.com/TheSmallHanCat/flow2api) 启发制作。
-> - `flow-token-updater` 受 [Flow2API-Token-Updater](https://github.com/TheSmallHanCat/Flow2API-Token-Updater) 启发。
+## 运行要求
 
-## 项目定位
+- Windows
+- Python 3.10 及以上
+- 能访问并登录 Flow：<https://labs.google/fx>
+- 登录账号本身具备 Flow 生图权限
 
-本仓库是本地使用的轻量级生图实现：
+## 快速开始
 
-- 聚焦 Flow 生图主链路（ST/AT、生成、放大）
-- 提供 CLI + 本地辅助工具，不是完整平台服务
+### 1. 安装
 
-## 使用前提（必须）
+双击：
 
-- 能正常登录 Flow：<https://labs.google/fx>
-- 账号具备生图权限
-- 使用 `-u 4k` 时需有对应订阅/权限
-
-## 目录结构
-
-```text
-flow-image-cli/
-├── flow_cli/                # CLI 主代码
-├── flow-token-updater/      # 浏览器插件（推荐）
-├── flow_token_server.py     # 本地 Token 接收服务
-├── config.toml              # 配置模板
-└── README.md
+```bat
+install.bat
 ```
 
-## 安装
+它会自动完成：
+
+- 创建 `.venv`
+- 安装 Python 依赖
+- 以可编辑模式安装项目
+- 安装 Playwright Chromium
+
+### 2. 启动
+
+双击：
+
+```bat
+start-flow-api.bat
+```
+
+启动后会自动打开：
+
+- 设置页：`http://127.0.0.1:8787/setup`
+- API 地址：`http://127.0.0.1:8787/v1`
+
+### 3. 完成配置
+
+在设置页中：
+
+1. 按提示登录 Google Flow
+2. 等待系统自动检测到登录状态
+3. 让本地服务自动完成同步
+4. 直接复制卡片里展示的 API 信息
+
+设置页提供：
+
+- `Open Login`
+- `Re-sync`
+- `Reset Config`
+- 可直接阅读的 API 信息卡片，不再显示原始 JSON
+
+## 默认 API 信息
+
+默认本地配置如下：
+
+- Base URL：`http://127.0.0.1:8787/v1`
+- API Key：`flow-local-key`
+
+如果你想改 API Key，可以在启动前设置：
+
+```powershell
+$env:FLOW_API_KEY="your-own-key"
+```
+
+## 支持的接口
+
+- `GET /health`
+- `GET /setup`
+- `GET /setup/status`
+- `POST /setup/open-login`
+- `POST /setup/finalize`
+- `POST /setup/reset`
+- `GET /v1/models`
+- `POST /v1/images/generations`
+- `POST /v1/images/edits`
+- `POST /v1/chat/completions`
+- `GET /v1/files/{filename}`
+
+## 模型使用
+
+可直接使用的模型 ID 示例：
+
+- `gemini-3.1-flash-image-landscape`
+- `gemini-3.1-flash-image-portrait`
+- `gemini-3.1-flash-image-square`
+- `gemini-3.0-pro-image-landscape`
+- `imagen-4.0-generate-preview-landscape`
+- `nano-banana-2-landscape`
+- `nano-banana-2-portrait`
+- `nano-banana-2-square`
+- `nano-banana-2-ultrawide`
+- `nano-banana-pro-landscape`
+- `nano-banana-pro-portrait`
+- `nano-banana-pro-square`
+
+也支持模型族别名：
+
+- `gemini-3.1-flash-image`
+- `gemini-3.0-pro-image`
+- `imagen-4.0-generate-preview`
+- `nano banana2`
+- `nano banana pro`
+
+特别说明：
+
+- 只有 `nano banana2` 支持 `21:9`
+
+## 尺寸与比例映射
+
+为了方便第三方调用，这个兼容层支持常见尺寸字段和更友好的提示值。
+
+尺寸映射：
+
+- `1K` -> 原图
+- `2K` -> 2K 放大
+- `4K` -> 4K 放大
+- `1024x1024` -> 方图
+- `1024x1536` -> 竖图
+- `1536x1024` -> 横图
+
+比例映射：
+
+- `1:1` -> 方图
+- `9:16` -> 竖图
+- `16:9` -> 横图
+- `21:9` -> 超宽图，仅 `nano banana2`
+
+质量映射：
+
+- `standard` -> 原图
+- `hd` 或 `2k` -> 2K 放大
+- `4k` -> 4K 放大
+
+同时也能识别第三方拼进提示词里的信息，例如：
+
+- `Preferred size: 4K`
+- `Preferred aspect ratio: 9:16`
+
+## 请求示例
+
+文生图：
 
 ```bash
-cd flow-image-cli
-pip install -r requirements.txt
-pip install -e .
+curl http://127.0.0.1:8787/v1/images/generations ^
+  -H "Authorization: Bearer flow-local-key" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"model\":\"gemini-3.1-flash-image\",\"prompt\":\"a cinematic cat\",\"size\":\"1536x1024\",\"quality\":\"hd\",\"response_format\":\"url\"}"
 ```
 
-### 安装 Playwright（`personal` 模式必需）
+图生图：
 
 ```bash
-pip install playwright
-python -m playwright install chromium
+curl http://127.0.0.1:8787/v1/images/edits ^
+  -H "Authorization: Bearer flow-local-key" ^
+  -F "model=gemini-3.1-flash-image" ^
+  -F "prompt=convert to watercolor" ^
+  -F "size=1024x1024" ^
+  -F "quality=2k" ^
+  -F "image=@input.jpg"
 ```
 
-## 推荐 Token 流程：flow-token-updater
-
-推荐使用仓库内插件自动同步 ST，避免手工复制。
-
-### 1) 启动本地 Token 服务
-
-```bash
-python flow_token_server.py
-```
-
-默认地址：`http://127.0.0.1:8765/token`
-
-### 2) Chrome 加载插件
-
-1. 打开 `chrome://extensions/`
-2. 启用开发者模式
-3. 点击“加载已解压的扩展程序”
-4. 选择 `/flow-image-cli/flow-token-updater`
-
-### 3) 配置插件
-
-1. 打开插件 popup
-2. 服务器地址填写 `http://127.0.0.1:8765/token`
-3. 保存并点击“立即获取”
-
-ST 会写入 `~/.flow-cli/token.json`。
-
-## 配置
-
-配置文件：`~/.flow-cli/config.toml`
-
-```toml
-[flow]
-labs_base_url = "https://labs.google/fx/api"
-api_base_url = "https://aisandbox-pa.googleapis.com/v1"
-timeout = 120
-max_retries = 3
-
-[output]
-output_dir = "output"
-
-[captcha]
-method = "personal" # personal / none
-personal_headless = false
-personal_timeout = 90
-personal_settle_seconds = 2.0
-
-[debug]
-enabled = false
-```
-
-Token 文件：`~/.flow-cli/token.json`
-
-## 打码模式说明
-
-支持的 `captcha.method`：
-
-- `personal`：使用本机浏览器执行验证码（需要 Playwright）
-- `none`：不主动处理验证码（遇到验证码场景可能失败）
-
-默认 `personal_headless = false`（可视化浏览器模式），对部分账号更稳定。若要静默运行可改为 `true`。
-
-## 交互式脚本
-
-```bash
-python interactive_generate.py
-```
-
-支持配置：
-
-- 模型族 / 画幅
-- 分辨率（`none/2k/4k`）
-- 提示词
-- 参考图路径
-- 默认输出路径
-- 语言模式（`中文 / English / 双语`）
-
-默认输出使用时间戳模板：`output/flow_{timestamp}.png`
-
-## CLI 使用示例
-
-### 登录
-
-```bash
-flow-cli login --st "your-session-token"
-```
-
-### 基础命令
-
-```bash
-flow-cli models
-flow-cli credits
-flow-cli config
-```
-
-### 生图
-
-```bash
-# 文生图
-flow-cli gen "a cinematic cat in neon city"
-
-# 指定模型 + 输出
-flow-cli gen "mountain landscape" -m gemini-3.1-flash-image-landscape -o output\landscape.png
-
-# 图生图
-flow-cli gen "convert to watercolor style" -r input.jpg -o output\watercolor.png
-```
-
-### 2K / 4K 放大
-
-```bash
-# 放大到 2K
-flow-cli gen "a cat" -m gemini-3.1-flash-image-landscape -u 2k -o output\cat_2k.png
-
-# 放大到 4K（需订阅/权限）
-flow-cli gen "a cat" -m gemini-3.1-flash-image-landscape -u 4k -o output\cat_4k.png
-```
-
-放大失败时会自动降级保存原图到目标路径。
-
-## Python API 示例
-
-### 文生图
+Python 调用示例：
 
 ```python
 import asyncio
@@ -193,83 +204,26 @@ async def main():
 asyncio.run(main())
 ```
 
-### 图生图 + 2K
+更多调用示例见 [API_USAGE.md](./API_USAGE.md)。
 
-```python
-import asyncio
-from pathlib import Path
-from flow_cli.client import ImageGenerator
+## 仓库结构
 
-async def main():
-    g = ImageGenerator()
-    path = await g.generate(
-        prompt="convert to watercolor",
-        model="gemini-3.1-flash-image-landscape",
-        reference_image=Path("input.jpg").read_bytes(),
-        output_path="output/api_img2img_2k.png",
-        upscale="2k",
-    )
-    print(path)
-
-asyncio.run(main())
+```text
+flow-image-cli/
+├── flow_cli/              # 核心 CLI 与本地 API 服务
+├── install.bat            # 一键安装
+├── start-flow-api.bat     # 一键启动
+├── API_USAGE.md           # 兼容 API 示例
+└── README.md
 ```
 
-## 常见问题 (FAQ)
+## 说明
 
-### Q1: 如何获取 2K 图片？
+- 这个仓库定位是本机或其他 Windows 电脑上的本地部署版本。
+- 用户只需要完成 Google Flow 登录。
+- 剩余配置和同步由本地服务自动完成。
+- 如果账号本身没有 Flow 生图权限或 4K 权限，请求仍然会被上游限制。
 
-使用 `-u 2k` 参数。
-`-u 4k` 需要账户有对应的订阅/权限。
-放大失败时，会自动降级为原图并保存。
+## License
 
-### Q2: 遇到 `reCAPTCHA evaluation failed` 错误怎么办？
-
-1. 确保 `captcha.method = "personal"`
-2. 确保已安装 Playwright 和 Chromium
-3. 确保浏览器能访问 Google Flow 并已登录
-
-### Q3: 遇到 401/500 错误怎么办？
-
-- 401：通常是 AT 过期，程序会自动刷新并重试
-- 500：上游服务偶发问题，建议重试或更换模型（推荐使用 `gemini-3.1-flash-image-*`）
-
-### Q4: 配置文件不生效？配置方法设置了但没效果？
-
-CLI 默认从 `~/.flow-cli/config.toml`（用户主目录）读取配置，而非项目根目录的 `config.toml`。
-
-**解决方案：**
-1. 将配置文件复制到默认位置：
-   ```bash
-   mkdir -p ~/.flow-cli
-   cp <你的项目路径>/config.toml ~/.flow-cli/config.toml
-   ```
-2. 或使用环境变量：
-   ```bash
-   export FLOW_CONFIG=/path/to/your/config.toml
-   ```
-
-### Q5: 如何更新/登录新的 Session Token？
-
-```bash
-flow-cli login --st "你的新session-token"
-```
-
-你可以从 Flow Token 浏览器插件获取 ST。
-
-### Q6: personal 验证码模式下 Playwright/浏览器问题？
-
-1. 安装 Playwright：`pip install playwright && python -m playwright install chromium`
-2. 如果浏览器没有自动打开，检查是否有其他 Chrome 实例正在使用该 profile
-3. 如果 headless 模式有问题，尝试在配置中设置 `personal_headless = false`
-4. 浏览器 profile 存储在 `~/.flow-cli/browser-profile`
-
-### Q7: 图片生成成功但文件没保存？
-
-- 检查输出目录是否存在且可写
-- 确保磁盘空间充足
-- 开启 debug 模式查看更多详情（在配置中设置 `debug.enabled = true`）
-
-## 许可证
-
-MIT，详见 [LICENSE](./LICENSE)。
-
+MIT

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "flow-cli"
 version = "1.0.0"
-description = "Flow 图片生成命令行工具"
+description = "Flow image local API and CLI"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
@@ -14,6 +14,10 @@ dependencies = [
     "curl-cffi>=0.7.0",
     "tomli>=2.0.0",
     "Pillow>=9.0.0",
+    "playwright>=1.52.0",
+    "fastapi>=0.116.0",
+    "uvicorn>=0.35.0",
+    "python-multipart>=0.0.20",
 ]
 
 [project.optional-dependencies]
@@ -24,6 +28,7 @@ dev = [
 
 [project.scripts]
 flow-cli = "flow_cli.cli:main"
+flow-api = "flow_cli.api_server:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

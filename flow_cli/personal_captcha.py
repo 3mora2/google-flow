@@ -1,8 +1,7 @@
 """
-本机浏览器 reCAPTCHA token 获取（personal 模式）
+Local browser reCAPTCHA token acquisition for personal mode.
 """
 
-from pathlib import Path
 from typing import Optional
 
 try:
@@ -24,28 +23,27 @@ async def get_personal_recaptcha_token(
     timeout_seconds: int = 90,
     settle_seconds: float = 2.0,
 ) -> str:
-    """通过本机浏览器执行 reCAPTCHA，返回 token"""
+    """Run reCAPTCHA in a local browser and return the token."""
     if not HAS_PLAYWRIGHT:
-        raise Exception("未安装 playwright，请先运行: pip install playwright && python -m playwright install chromium")
+        raise Exception(
+            "Playwright is not installed. Run: pip install playwright && python -m playwright install chromium"
+        )
 
-    profile_dir = Path.home() / ".flow-cli" / "browser-profile"
-    profile_dir.mkdir(parents=True, exist_ok=True)
     url = f"https://labs.google/fx/tools/flow/project/{project_id}"
 
     async with async_playwright() as p:
-        context = await p.chromium.launch_persistent_context(
-            user_data_dir=str(profile_dir),
+        browser = await p.chromium.launch(
             headless=headless,
             args=[
                 "--disable-blink-features=AutomationControlled",
                 "--no-default-browser-check",
                 "--disable-dev-shm-usage",
             ],
-            viewport={"width": 1440, "height": 900},
         )
+        context = await browser.new_context(viewport={"width": 1440, "height": 900})
 
         try:
-            page = context.pages[0] if context.pages else await context.new_page()
+            page = await context.new_page()
 
             if st_token:
                 await context.add_cookies(
@@ -93,8 +91,8 @@ async def get_personal_recaptcha_token(
             )
 
             if not token:
-                raise Exception("浏览器执行成功但未返回 token")
+                raise Exception("Browser execution succeeded but returned an empty token")
             return token
         finally:
             await context.close()
-
+            await browser.close()
