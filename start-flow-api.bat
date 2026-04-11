@@ -16,7 +16,10 @@ if not exist ".venv\Scripts\python.exe" (
 )
 
 echo Starting Flow OpenAI-compatible API on http://%HOST%:%API_PORT% ...
-start "Flow API" cmd /k "set FLOW_API_KEY=%FLOW_API_KEY% && .\.venv\Scripts\python.exe -m flow_cli.api_server --host %HOST% --port %API_PORT%"
+echo Stopping old Flow API processes if they exist...
+powershell -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*flow_cli.api_server*' -and $_.Name -match 'python|cmd' } | ForEach-Object { try { Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop } catch {} }"
+
+start "Flow API" cmd /k "set ""FLOW_API_KEY=%FLOW_API_KEY%"" && .\.venv\Scripts\python.exe -m flow_cli.api_server --host %HOST% --port %API_PORT%"
 
 timeout /t 3 /nobreak >nul
 start "" "http://%HOST%:%API_PORT%/setup"

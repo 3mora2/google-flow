@@ -1,9 +1,13 @@
 import argparse
 import asyncio
 import base64
+import ctypes
 import json
+import os
 import re
 import secrets
+import socket
+import shutil
 import tempfile
 import time
 import uuid
@@ -25,6 +29,52 @@ DEFAULT_API_KEY = "flow-local-key"
 OUTPUT_ROOT = Path(tempfile.gettempdir()) / "flow-image-api"
 DEBUG_ROOT = OUTPUT_ROOT / "_debug"
 PROFILE_ROOT = Path.home() / ".flow-cli" / "browser-profile"
+
+if os.name == "nt":
+    from ctypes import wintypes
+
+    SW_HIDE = 0
+    SW_SHOW = 5
+    SW_MINIMIZE = 6
+    SW_RESTORE = 9
+
+
+def set_windows_browser_visibility(visible: bool) -> bool:
+    if os.name != "nt":
+        return False
+
+    user32 = ctypes.windll.user32
+    titles: list[tuple[int, str]] = []
+
+    @ctypes.WINFUNCTYPE(ctypes.c_bool, wintypes.HWND, wintypes.LPARAM)
+    def enum_proc(hwnd, _lparam):
+        length = user32.GetWindowTextLengthW(hwnd)
+        if length <= 0:
+            return True
+        buffer = ctypes.create_unicode_buffer(length + 1)
+        user32.GetWindowTextW(hwnd, buffer, length + 1)
+        title = buffer.value.strip()
+        if not title:
+            return True
+        lowered = title.lower()
+        if "flow" in lowered and ("chrome" in lowered or "edge" in lowered or "google" in lowered):
+            titles.append((hwnd, title))
+        return True
+
+    user32.EnumWindows(enum_proc, 0)
+    if not titles:
+        return False
+
+    changed = False
+    for hwnd, _title in titles:
+        if visible:
+            user32.ShowWindow(hwnd, SW_RESTORE)
+            user32.ShowWindow(hwnd, SW_SHOW)
+            user32.SetForegroundWindow(hwnd)
+        else:
+            user32.ShowWindow(hwnd, SW_MINIMIZE)
+        changed = True
+    return changed
 
 
 class ImageGenerationRequest(BaseModel):
@@ -56,6 +106,8 @@ class LoginSessionManager:
         self._playwright = None
         self._context = None
         self._page = None
+        self._last_cookie_error = ""
+        self._window_visible = True
 
     async def open(self, flow_url: str) -> None:
         async with self._lock:
@@ -63,6 +115,8 @@ class LoginSessionManager:
                 if self._page is None:
                     self._page = self._context.pages[0] if self._context.pages else await self._context.new_page()
                 await self._page.goto(flow_url, wait_until="domcontentloaded", timeout=60000)
+                self._window_visible = True
+                await self._set_window_visibility(True)
                 return
 
             PROFILE_ROOT.mkdir(parents=True, exist_ok=True)
@@ -79,25 +133,108 @@ class LoginSessionManager:
             )
             self._page = self._context.pages[0] if self._context.pages else await self._context.new_page()
             await self._page.goto(flow_url, wait_until="domcontentloaded", timeout=60000)
+            self._window_visible = True
+
+    async def _set_window_visibility(self, visible: bool) -> bool:
+        try:
+            changed = set_windows_browser_visibility(visible)
+            if changed:
+                self._window_visible = visible
+            return changed
+        except Exception:
+            return False
+
+    def _extract_st_from_cookie_list(self, cookies: list[dict[str, Any]]) -> Optional[str]:
+        exact_names = [
+            "__Secure-next-auth.session-token",
+            "next-auth.session-token",
+        ]
+        for name in exact_names:
+            for cookie in cookies:
+                if cookie.get("name") == name and cookie.get("value"):
+                    return str(cookie["value"])
+
+        chunk_prefixes = [
+            "__Secure-next-auth.session-token.",
+            "next-auth.session-token.",
+        ]
+        for prefix in chunk_prefixes:
+            chunks: list[tuple[int, str]] = []
+            for cookie in cookies:
+                name = str(cookie.get("name") or "")
+                value = str(cookie.get("value") or "")
+                if not value or not name.startswith(prefix):
+                    continue
+                suffix = name[len(prefix) :]
+                if suffix.isdigit():
+                    chunks.append((int(suffix), value))
+            if chunks:
+                chunks.sort(key=lambda item: item[0])
+                return "".join(value for _, value in chunks)
+
+        return None
+
+    async def _read_flow_session_token(self) -> Optional[str]:
+        if self._context is None:
+            return None
+
+        last_error = None
+        cookie_queries = [
+            (),
+            ("https://labs.google/",),
+            ("https://labs.google/fx/tools/flow",),
+            ("https://labs.google/fx", "https://labs.google/"),
+        ]
+        for query in cookie_queries:
+            try:
+                cookies = await self._context.cookies(*query)
+                token = self._extract_st_from_cookie_list(cookies)
+                if token:
+                    self._last_cookie_error = ""
+                    return token
+            except Exception as exc:
+                last_error = exc
+
+        if last_error is not None:
+            self._last_cookie_error = str(last_error)
+        return None
 
     async def extract_st(self) -> str:
         async with self._lock:
             if self._context is None:
                 raise HTTPException(status_code=400, detail="Login browser is not open")
-            cookies = await self._context.cookies("https://labs.google/", "https://labs.google/fx/tools/flow")
-            for cookie in cookies:
-                if cookie.get("name") == "__Secure-next-auth.session-token" and cookie.get("value"):
-                    return cookie["value"]
+            token = await self._read_flow_session_token()
+            if token:
+                return token
             raise HTTPException(status_code=400, detail="Flow session token not found. Please confirm Google Flow login is complete.")
 
     async def has_st_cookie(self) -> bool:
         async with self._lock:
             if self._context is None:
                 return False
-            cookies = await self._context.cookies("https://labs.google/", "https://labs.google/fx/tools/flow")
-            return any(cookie.get("name") == "__Secure-next-auth.session-token" and cookie.get("value") for cookie in cookies)
+            try:
+                return bool(await self._read_flow_session_token())
+            except Exception as exc:
+                self._last_cookie_error = str(exc)
+                return False
 
-    async def close(self) -> None:
+    async def get_cookie_error(self) -> str:
+        async with self._lock:
+            return self._last_cookie_error
+
+    async def set_window_visible(self, visible: bool) -> bool:
+        async with self._lock:
+            return await self._set_window_visibility(visible)
+
+    async def is_window_visible(self) -> bool:
+        async with self._lock:
+            return self._window_visible if self._context is not None else False
+
+    async def reopen_fresh(self, flow_url: str) -> None:
+        await self.close(delete_profile=True)
+        await self.open(flow_url)
+
+    async def close(self, delete_profile: bool = False) -> None:
         async with self._lock:
             if self._context is not None:
                 await self._context.close()
@@ -106,6 +243,10 @@ class LoginSessionManager:
             if self._playwright is not None:
                 await self._playwright.stop()
                 self._playwright = None
+            self._last_cookie_error = ""
+            self._window_visible = True
+        if delete_profile and PROFILE_ROOT.exists():
+            shutil.rmtree(PROFILE_ROOT, ignore_errors=True)
 
     async def is_open(self) -> bool:
         async with self._lock:
@@ -118,7 +259,7 @@ login_manager = LoginSessionManager()
 def get_api_key() -> str:
     import os
 
-    return os.environ.get(API_KEY_ENV, DEFAULT_API_KEY)
+    return os.environ.get(API_KEY_ENV, DEFAULT_API_KEY).strip()
 
 
 def verify_api_key(authorization: Optional[str] = Header(default=None)) -> None:
@@ -383,13 +524,12 @@ def build_api_info(base_url: str) -> dict:
         "recommended_models": [
             "nano banana2",
             "nano banana pro",
-            "gemini-3.1-flash-image-landscape",
         ],
         "notes": [
-            "Keep this computer powered on while the API is in use.",
-            "Keep the Google Flow account signed in on this machine.",
-            "21:9 is only supported by nano banana2.",
-            "4K is slower and less stable than 1K/2K.",
+            "请保持这台电脑开机并保持 API 服务运行。",
+            "请保持这台电脑上的 Google Flow 登录状态。",
+            f"OpenAI Chat接口完整示例：{base_url}/v1/chat/completions",
+            "其他接口格式详README-zh文件",
         ],
     }
 
@@ -404,6 +544,19 @@ def clear_flow_state() -> None:
     config.save_token()
 
 
+async def perform_fresh_relogin() -> None:
+    clear_flow_state()
+    await login_manager.reopen_fresh("https://labs.google/fx/tools/flow")
+
+
+def check_host_connectivity(host: str, port: int = 443, timeout: float = 8.0) -> tuple[bool, str]:
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True, ""
+    except Exception as exc:
+        return False, str(exc)
+
+
 async def finalize_flow_setup(base_url: str) -> dict:
     st = await login_manager.extract_st()
     config = get_config()
@@ -414,10 +567,37 @@ async def finalize_flow_setup(base_url: str) -> dict:
     config.token.user_paygate_tier = "PAYGATE_TIER_NOT_PAID"
     config.save_token()
 
+    reachable, network_error = check_host_connectivity("labs.google", 443, timeout=8.0)
+    if not reachable:
+        return {
+            "success": False,
+            "error_type": "network_unreachable",
+            "message": "This computer cannot reach labs.google:443. Please check proxy, VPN, firewall, DNS, or network routing first.",
+            "detail": network_error,
+            "api": build_api_info(base_url),
+        }
+
     generator = ImageGenerator()
-    credits_info = await generator.check_credits()
-    await generator.client.ensure_project()
-    await login_manager.close()
+    try:
+        credits_info = await generator.check_credits()
+        await generator.client.ensure_project()
+        await login_manager.close()
+    except Exception as exc:
+        detail = str(exc)
+        error_type = "flow_request_failed"
+        lowered = detail.lower()
+        if "failed to connect to labs.google" in lowered or "could not connect to server" in lowered:
+            error_type = "network_unreachable"
+        elif "timeout" in lowered:
+            error_type = "network_timeout"
+
+        return {
+            "success": False,
+            "error_type": error_type,
+            "message": "Flow setup failed while requesting Google Flow. Please verify this computer can access labs.google and retry.",
+            "detail": detail,
+            "api": build_api_info(base_url),
+        }
 
     return {
         "success": True,
@@ -499,8 +679,10 @@ async def setup_page():
         <div class="step"><div class="num">1</div><div><strong>打开登录页</strong><p>系统会自动打开 Flow 登录页。如果没有弹出，可以手动点击下面的按钮重新打开。</p></div></div>
         <div class="step"><div class="num">2</div><div><strong>登录 Google Flow</strong><p>在弹出的浏览器中登录你的 Google 会员账号。登录完成后，不需要再做额外操作。</p></div></div>
         <div class="step"><div class="num">3</div><div><strong>自动完成配置</strong><p>页面会自动检测登录状态并完成配置。必要时你也可以手动点击“重新同步”。</p></div></div>
+        <div class="step"><div class="num">4</div><div><strong>无法自动配置时</strong><p>如遇无法自动配置问题，请检查自身魔法网络，建议全局 + TUN 模式。</p></div></div>
         <div class="buttons">
-          <button onclick="openLogin()">重新登录</button>
+          <button onclick="relogin()">重新登录</button>
+          <button class="secondary" onclick="toggleBrowserWindow()">隐藏/显示浏览器</button>
           <button class="secondary" onclick="finalizeSetup()">重新同步</button>
           <button class="secondary" onclick="refreshStatus()">刷新状态</button>
           <button class="danger" onclick="resetSetup()">重置配置</button>
@@ -547,7 +729,8 @@ async def setup_page():
       return value ? `<span class="good">${okText}</span>` : `<span class="bad">${badText}</span>`;
     }
     function renderStatus(data) {
-      document.getElementById('browser_state').innerHTML = yn(data.browser_open, '已打开', '未打开');
+      const browserText = data.browser_open ? (data.browser_visible ? '已显示' : '已隐藏') : '未打开';
+      document.getElementById('browser_state').innerHTML = data.browser_open ? `<span class="good">${browserText}</span>` : `<span class="bad">${browserText}</span>`;
       document.getElementById('login_state').innerHTML = yn(data.login_detected, '已检测到', '未检测到');
       document.getElementById('st_state').innerHTML = yn(data.has_st, '已保存', '未保存');
       document.getElementById('project_state').innerHTML = yn(data.project_ready, '已初始化', '未初始化');
@@ -556,6 +739,8 @@ async def setup_page():
         setBanner('warn', '已检测到 Flow 登录，正在等待自动同步或手动点击“重新同步”。');
       } else if (data.has_st && data.project_ready) {
         setBanner('ok', '配置已完成，可以直接复制右侧 API 信息给用户。');
+      } else if (data.login_error) {
+        setBanner('warn', `登录检测遇到问题：${data.login_error}`);
       } else {
         setBanner('warn', '请先登录 Google Flow，完成后系统会自动配置。');
       }
@@ -588,6 +773,20 @@ async def setup_page():
       setBanner(data.success ? 'ok' : 'err', data.message || '已触发打开登录页。');
       await refreshStatus();
     }
+    async function relogin() {
+      finalized = false;
+      document.getElementById('api_result').innerHTML = '<div class="note">正在退出当前浏览器登录状态并重新打开登录窗口...</div>';
+      const res = await fetch('/setup/relogin', { method: 'POST' });
+      const data = await res.json();
+      setBanner(data.success ? 'ok' : 'err', data.message || '已重新打开登录页。');
+      await refreshStatus();
+    }
+    async function toggleBrowserWindow() {
+      const res = await fetch('/setup/toggle-browser', { method: 'POST' });
+      const data = await res.json();
+      setBanner(data.success ? 'ok' : 'err', data.message || '浏览器窗口状态已更新。');
+      await refreshStatus();
+    }
     async function finalizeSetup() {
       document.getElementById('api_result').innerHTML = '<div class="note">正在自动配置，请稍候...</div>';
       const res = await fetch('/setup/finalize', { method: 'POST' });
@@ -596,8 +795,8 @@ async def setup_page():
         renderResult(data);
         setBanner('ok', '自动配置完成。现在可以把 URL、API Key 和模型信息提供给用户。');
       } else {
-        document.getElementById('api_result').innerHTML = `<div class="note">配置失败：${JSON.stringify(data)}</div>`;
-        setBanner('err', '自动配置失败，请检查登录状态后重试。');
+        document.getElementById('api_result').innerHTML = `<div class="note">配置失败：${data.message || 'Unknown error'}<br/><br/>${data.detail || ''}</div>`;
+        setBanner('err', data.message || '自动配置失败，请检查登录状态后重试。');
       }
       await refreshStatus();
     }
@@ -620,12 +819,18 @@ async def setup_page():
 @app.get("/setup/status")
 async def setup_status(request: Request):
     config = get_config()
+    live_login_detected = await login_manager.has_st_cookie()
+    persisted_login_detected = bool(config.token.st or config.token.at or config.token.project_id)
     return {
         "browser_open": await login_manager.is_open(),
-        "login_detected": await login_manager.has_st_cookie(),
+        "browser_visible": await login_manager.is_window_visible(),
+        "login_detected": live_login_detected or persisted_login_detected,
+        "live_login_detected": live_login_detected,
+        "persisted_login_detected": persisted_login_detected,
         "has_st": bool(config.token.st),
         "has_at": bool(config.token.at),
         "project_ready": bool(config.token.project_id),
+        "login_error": await login_manager.get_cookie_error(),
         "api": build_api_info(str(request.base_url).rstrip("/")),
     }
 
@@ -634,6 +839,33 @@ async def setup_status(request: Request):
 async def setup_open_login():
     await login_manager.open("https://labs.google/fx/tools/flow")
     return {"success": True, "message": "Flow login browser opened. Please complete Google login there."}
+
+
+@app.post("/setup/relogin")
+async def setup_relogin():
+    await perform_fresh_relogin()
+    return {
+        "success": True,
+        "message": "Previous Google Flow login session has been cleared. Please sign in again in the reopened browser.",
+    }
+
+
+@app.post("/setup/toggle-browser")
+async def setup_toggle_browser():
+    browser_open = await login_manager.is_open()
+    if not browser_open:
+        return {"success": False, "message": "Login browser is not open yet."}
+
+    visible = await login_manager.is_window_visible()
+    changed = await login_manager.set_window_visible(not visible)
+    if not changed:
+        return {"success": False, "message": "Could not change browser window state. Please bring it to front manually."}
+
+    return {
+        "success": True,
+        "visible": not visible,
+        "message": "Browser window is now visible." if not visible else "Browser window has been hidden.",
+    }
 
 
 @app.post("/setup/finalize")
