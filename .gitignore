@@ -44,3 +44,4 @@ Thumbs.db
 
 output/
 docs/
+release-package/dist/

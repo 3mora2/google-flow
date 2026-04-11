@@ -2,7 +2,24 @@
 
 Chinese README: [README-zh.md](./README-zh.md)
 
-This repository packages `flow-image-cli` into a cleaner local deployment that exposes an OpenAI-compatible image API.
+Flow Image Local API is a Windows-first local deployment for Google Flow image generation, exposed through an OpenAI-compatible API.
+
+It is designed for a very simple delivery flow:
+
+- You send the project to another Windows PC
+- The user only logs in to Google Flow
+- The local service completes setup automatically
+- The user copies `URL`, `API Key`, and `Model` into any compatible third-party app
+
+## Why This Project
+
+- No browser extension
+- No manual token copy/paste
+- One-click install and one-click startup
+- Friendly `/setup` completion page
+- OpenAI-compatible endpoints for third-party tools
+- Supports text-to-image and image-to-image
+- Supports `1K`, `2K`, `4K`, `1:1`, `9:16`, `16:9`, `21:9`
 
 The intended flow is simple:
 
@@ -12,6 +29,16 @@ The intended flow is simple:
 4. Wait for `/setup` to finish and copy the final `URL`, `API Key`, and `Model`
 
 No browser extension is required.
+
+## GitHub Summary
+
+This project turns Google Flow image generation into a local OpenAI-compatible API service for Windows.
+
+Best for:
+
+- Local self-hosting
+- Sending to friends or customers as a zip package
+- Connecting third-party apps to Flow with only `URL`, `API Key`, and `Model`
 
 ## What This Repo Includes
 
@@ -75,6 +102,21 @@ The setup page provides:
 - `Re-sync`
 - `Reset Config`
 - Human-readable API result cards instead of raw JSON
+
+## Release Package
+
+This repository includes a dedicated packaging directory:
+
+- [release-package/README.md](./release-package/README.md)
+- [release-package/build-release-package.bat](./release-package/build-release-package.bat)
+
+Run:
+
+```bat
+release-package\build-release-package.bat
+```
+
+It generates a clean distributable folder and a zip file under `release-package\dist\`.
 
 ## API Information
 
@@ -210,11 +252,12 @@ More request examples are in [API_USAGE.md](./API_USAGE.md).
 
 ```text
 flow-image-cli/
-├── flow_cli/              # Core CLI + local API server
-├── install.bat            # One-click installer
-├── start-flow-api.bat     # One-click launcher
-├── API_USAGE.md           # Compatible API examples
-└── README.md
+|-- flow_cli/              # Core CLI + local API server
+|-- release-package/       # Packaging tools for zip distribution
+|-- install.bat            # One-click installer
+|-- start-flow-api.bat     # One-click launcher
+|-- API_USAGE.md           # Compatible API examples
+`-- README.md
 ```
 
 ## Notes
