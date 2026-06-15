@@ -2135,6 +2135,7 @@ class TokenBrowser:
 
             browser = await playwright.chromium.launch(
                 headless=False,
+                channel="chrome",
                 executable_path=browser_executable_path,
                 proxy=proxy_option,
                 args=browser_args,

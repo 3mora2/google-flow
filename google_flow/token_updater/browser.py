@@ -1038,6 +1038,7 @@ class BrowserManager:
                 context = await self._playwright.chromium.launch_persistent_context(
                     user_data_dir=resolved_dir,
                     headless=True,
+                    channel="chrome",
                     viewport={"width": 1024, "height": 768},
                     locale="en-US",
                     timezone_id="America/New_York",
@@ -1116,6 +1117,7 @@ class BrowserManager:
                     context = await self._playwright.chromium.launch_persistent_context(
                         user_data_dir=resolved_dir,
                         headless=True,
+                        channel="chrome",
                         viewport={"width": 1024, "height": 768},
                         locale="en-US",
                         timezone_id="America/New_York",
@@ -1203,6 +1205,7 @@ class BrowserManager:
                     headless=False,  # VNC visible
                     viewport={"width": 1024, "height": 768},
                     locale="en-US",
+                    channel="chrome",
                     timezone_id="America/New_York",
                     proxy=proxy,
                     args=LOGIN_BROWSER_ARGS,
@@ -1340,6 +1343,7 @@ class BrowserManager:
                     headless=True,  # Headless saves resources
                     viewport={"width": 1024, "height": 768},
                     locale="en-US",
+                    channel="chrome",
                     timezone_id="America/New_York",
                     proxy=proxy,
                     args=BROWSER_ARGS,  # Complete memory optimization parameters
@@ -1448,6 +1452,7 @@ class BrowserManager:
 
                 context = await self._playwright.chromium.launch_persistent_context(
                     user_data_dir=resolved_dir,
+                    channel="chrome",
                     headless=not use_vnc,
                     viewport={"width": 1280, "height": 900},
                     locale="en-US",
@@ -1612,6 +1617,7 @@ class BrowserManager:
                 proxy = await self._get_proxy(profile)
                 context = await self._playwright.chromium.launch_persistent_context(
                     user_data_dir=resolved_dir,
+                    channel="chrome",
                     headless=True,
                     viewport={"width": 1024, "height": 768},
                     locale="en-US",

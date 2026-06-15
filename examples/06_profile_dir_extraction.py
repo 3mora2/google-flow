@@ -100,6 +100,7 @@ async def main() -> None:
             # Launch in non-headless mode so the user can interact and log in
             interactive_context = await browser._playwright.chromium.launch_persistent_context(
                 user_data_dir=profile_dir,
+                channel="chrome",
                 headless=False,  # Visual mode
                 viewport={"width": 1024, "height": 768},
                 locale="en-US",

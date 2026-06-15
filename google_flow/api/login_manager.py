@@ -121,6 +121,7 @@ class LoginSessionManager:
                 await self._playwright.chromium.launch_persistent_context(
                     user_data_dir=str(PROFILE_ROOT),
                     headless=False,
+                    channel="chrome",
                     args=[
                         "--disable-blink-features=AutomationControlled",
                         "--no-default-browser-check",
