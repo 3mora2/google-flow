@@ -122,7 +122,7 @@ class ImageGenerator:
         prompt: str,
         *,
         model: str | None = None,
-        reference_image: bytes | None = None,
+        reference_image: bytes | list[bytes] | None = None,
         output_path: str | None = None,
         upscale: str = "none",
     ) -> str:
@@ -137,7 +137,7 @@ class ImageGenerator:
         model:
             Model ID from the registry.
         reference_image:
-            Optional reference image bytes for image-to-image.
+            Optional reference image bytes or list of bytes for image-to-image.
         output_path:
             Path to save the result.  Auto-generated if *None*.
         upscale:
@@ -160,21 +160,24 @@ class ImageGenerator:
         at = await self.ensure_access_token()
         project_id = await self.ensure_project()
 
-        # Upload reference image
+        # Upload reference image(s)
         image_inputs: list[dict[str, Any]] = []
         if reference_image:
-            logger.info("  Uploading reference image …")
-            media_id = await self.client.upload_image(
-                at=at,
-                image_bytes=reference_image,
-                aspect_ratio=model_cfg.aspect_ratio.value,
-                project_id=project_id,
-            )
-            image_inputs.append({
-                "name": media_id,
-                "imageInputType": "IMAGE_INPUT_TYPE_REFERENCE",
-            })
-            logger.info("  Reference image uploaded")
+            # Normalize to list of bytes
+            ref_images = reference_image if isinstance(reference_image, list) else [reference_image]
+            for idx, img_bytes in enumerate(ref_images, start=1):
+                logger.info("  Uploading reference image %d …", idx)
+                media_id = await self.client.upload_image(
+                    at=at,
+                    image_bytes=img_bytes,
+                    aspect_ratio=model_cfg.aspect_ratio.value,
+                    project_id=project_id,
+                )
+                image_inputs.append({
+                    "name": media_id,
+                    "imageInputType": "IMAGE_INPUT_TYPE_REFERENCE",
+                })
+                logger.info("  Reference image %d uploaded", idx)
 
         # Generate with retry
         logger.info("  Generating image …")

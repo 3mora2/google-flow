@@ -166,11 +166,25 @@ class FlowSDK:
         prompt: str,
         *,
         model: str | None = None,
-        reference_image: bytes | None = None,
+        reference_image: bytes | list[bytes] | None = None,
         output_path: str | None = None,
         upscale: str = "none",
     ) -> str:
-        """Generate an image and return the saved path or URL."""
+        """Generate an image and return the saved path or URL.
+
+        Parameters
+        ----------
+        prompt:
+            Text prompt for generation.
+        model:
+            Model ID from the registry.
+        reference_image:
+            Optional reference image bytes or list of bytes for image-to-image.
+        output_path:
+            Path to save the result. Auto-generated if None.
+        upscale:
+            Upscale resolution: "none", "2k", or "4k".
+        """
         if not self._generator:
             raise RuntimeError("SDK is not initialized. Use as an async context manager.")
 

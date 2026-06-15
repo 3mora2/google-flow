@@ -91,3 +91,53 @@ async def test_check_credits(mock_generator):
     info = await mock_generator.check_credits()
     assert info.credits == 50
     assert info.tier == "PAYGATE_TIER_PAID"
+
+
+@pytest.mark.asyncio
+async def test_generate_multiple_reference_images(mock_generator):
+    mock_generator.session.token.at = "at-token"
+    mock_generator.session.token.project_id = "project-id"
+    mock_generator.client.upload_image = AsyncMock(side_effect=["media-id-1", "media-id-2"])
+    mock_generator.client.generate_image.return_value = (
+        {
+            "media": [
+                {
+                    "name": "media-1",
+                    "image": {
+                        "generatedImage": {
+                            "fifeUrl": "https://fife.google/image1"
+                        }
+                    }
+                }
+            ]
+        },
+        "session-1"
+    )
+
+    await mock_generator.generate(
+        prompt="two cats",
+        model="gemini-3.1-flash-image-landscape",
+        reference_image=[b"image1", b"image2"],
+        output_path=None
+    )
+
+    assert mock_generator.client.upload_image.call_count == 2
+    mock_generator.client.upload_image.assert_any_call(
+        at="at-token",
+        image_bytes=b"image1",
+        aspect_ratio="IMAGE_ASPECT_RATIO_LANDSCAPE",
+        project_id="project-id",
+    )
+    mock_generator.client.upload_image.assert_any_call(
+        at="at-token",
+        image_bytes=b"image2",
+        aspect_ratio="IMAGE_ASPECT_RATIO_LANDSCAPE",
+        project_id="project-id",
+    )
+
+    mock_generator.client.generate_image.assert_called_once()
+    _, kwargs = mock_generator.client.generate_image.call_args
+    assert kwargs["image_inputs"] == [
+        {"name": "media-id-1", "imageInputType": "IMAGE_INPUT_TYPE_REFERENCE"},
+        {"name": "media-id-2", "imageInputType": "IMAGE_INPUT_TYPE_REFERENCE"},
+    ]

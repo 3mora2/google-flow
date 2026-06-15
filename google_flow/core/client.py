@@ -9,6 +9,7 @@ injection, and error classification.  Business-level orchestration
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import random
 import time
@@ -95,6 +96,7 @@ class FlowClient:
 
         self._session: Any | None = None
         self._owns_session = False
+        self._upload_cache: dict[tuple[str | None, str], str] = {}
 
     # ── Context Manager ─────────────────────────────────────────────
 
@@ -251,6 +253,17 @@ class FlowClient:
         project_id: str | None = None,
     ) -> str:
         """Upload a reference image and return its media ID."""
+        img_hash = hashlib.sha256(image_bytes).hexdigest()
+        cache_key = (project_id, img_hash)
+        if cache_key in self._upload_cache:
+            cached_media_id = self._upload_cache[cache_key]
+            logger.info(
+                "Using cached media ID %s for image (hash: %s)",
+                cached_media_id,
+                img_hash[:12],
+            )
+            return cached_media_id
+
         if aspect_ratio.startswith("VIDEO_"):
             aspect_ratio = aspect_ratio.replace("VIDEO_", "IMAGE_")
 
@@ -282,6 +295,8 @@ class FlowClient:
                 "Upload response missing media ID",
                 detail=f"keys={list(result.keys())}",
             )
+
+        self._upload_cache[cache_key] = media_id
         return media_id
 
     # ── Generation ──────────────────────────────────────────────────
