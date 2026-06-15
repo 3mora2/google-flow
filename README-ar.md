@@ -1,230 +1,123 @@
-# واجهة برمجية Flow Image المحلية (Flow Image Local API)
+# واجهة برمجية Flow Image المحلية والـ SDK البرمجي (الموحد)
 
-English README: [README.md](./README.md)
+[![Python Version](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
-يقوم هذا المستودع بتنظيم `flow-image-cli` في إصدار أكثر ملاءمة للنشر المحلي والمشاركة مع الآخرين، ويوفر واجهة برمجية للصور متوافقة مع OpenAI.
+النسخة الإنجليزية: [README.md](./README.md) | تفاصيل المعمارية: [ARCHITECTURE-ar.md](./ARCHITECTURE-ar.md)
 
-خطوات الاستخدام الموصى بها بسيطة للغاية:
+يوفر هذا المستودع بيئة تشغيل محلية موحدة لتوليد الصور عبر Google Flow، وتوفيرها للبرامج الخارجية كـ **واجهة برمجية (API) متوافقة مع معايير OpenAI**، بالإضافة إلى **مكتبة استدعاء برمجية عالية المستوى لـ Python (FlowSDK)**.
 
-1. انقر نقرًا مزدوجًا على `install.bat`
-2. انقر نقرًا مزدوجًا على `start-flow-api.bat`
-3. سجل الدخول إلى Google Flow في المتصفح الذي يفتح تلقائيًا
-4. انتظر حتى تكتمل صفحة `/setup` تلقائيًا، ثم انسخ قيم `URL` و`API Key` و`Model` المعروضة في النهاية.
+---
 
-لا حاجة لإضافات المتصفح.
+## 🌟 الميزات الرئيسية
 
-## ماذا يتضمن هذا الإصدار
+1. **إعداد موجه وسهل (`/setup`)**: واجهة ويب تفتح تلقائياً لتوجيه المستخدم، وتقوم بالكشف عن حالة تسجيل الدخول تلقائياً ومزامنة الرموز (Tokens) دون الحاجة لنسخها ولصقها يدوياً.
+2. **محدث توكنات خلفي (Token Updater)**: خدمة جدولة تعمل في الخلفية للحفاظ على جلسات الحسابات المتعددة نشطة تلقائياً، مع دعم استخدام بروكسي (Proxy) منفصل لكل حساب لعزل البصمة الرقمية.
+3. **محلل كابتشا داخلي (In-Process Captcha Solver)**: يحل تحديات الكابتشا (reCAPTCHA) داخل نفس عملية التطبيق عبر Playwright/nodriver، مما يلغي الحاجة لتشغيل خوادم وسيطة أو منافذ شبكة منفصلة.
+4. **SDK برمجي للدمج (`FlowSDK`)**: فئة برمجية بايثون آمنة ومتطابقة مع الخيوط المتعددة (Thread-safe) لتضمين توليد الصور مباشرة في تطبيقاتك الخاصة.
+5. **توافق كامل مع OpenAI**: يمكنك ربطه بأي تطبيق خارجي لتوليد الصور (مثل Cherry Studio أو Next Chat) عبر إعداد الرابط ومفتاح API واسم النموذج المعروض في واجهة الإعداد.
 
-- خدمة واجهة برمجية (API) محلية متوافقة مع OpenAI
-- صفحة إعداد إرشادية عند `/setup`
-- كشف تلقائي لتسجيل الدخول إلى Flow ومزامنة الرموز المميز (Tokens)
-- توليد الصور من نص (Text-to-Image) وتوليد الصور من صور (Image-to-Image)
-- خيارات دقة الإخراج: 1K / 2K / 4K
-- تخطيط الأبعاد والنسب لـ `1:1` و`9:16` و`16:9` و`21:9`
-- تدفق معالجة الكابتشا وتسجيل الدخول عبر متصفح محلي يعتمد على Playwright
+---
 
-## متطلبات التشغيل
-
-- نظام التشغيل Windows
-- إصدار Python 3.10 أو أحدث
-- إمكانية الوصول وتسجيل الدخول إلى Flow: <https://labs.google/fx>
-- حساب جوجل يمتلك صلاحية توليد الصور على Flow بالفعل
-
-## البداية السريعة
+## 🚀 البداية السريعة
 
 ### 1. التثبيت
 
-انقر نقرًا مزدوجًا على:
-
+انقر نقراً مزدوجاً على ملف التثبيت:
 ```bat
 install.bat
 ```
-
-سيقوم تلقائيًا بـ:
-
-- إنشاء البيئة الافتراضية `.venv`
-- تثبيت مكتبات Python المطلوبة
-- تثبيت المشروع في وضع القابلية للتعديل (Editable mode)
-- تثبيت متصفح Playwright Chromium
+*سيقوم هذا الملف بتهيئة البيئة الافتراضية `.venv` وتثبيت الحزم المطلوبة وتنزيل متصفح Playwright Chromium تلقائياً.*
 
 ### 2. التشغيل
 
-انقر نقرًا مزدوجًا على:
-
+انقر نقراً مزدوجاً على ملف التشغيل:
 ```bat
 start-flow-api.bat
 ```
-
-بعد التشغيل، سيفتح تلقائيًا:
-
-- صفحة الإعداد: `http://127.0.0.1:8787/setup`
-- عنوان الـ API: `http://127.0.0.1:8787/v1`
+*سيقوم ببدء تشغيل خادم الويب على المنفذ `8787` وفتح صفحة الإعداد تلقائياً في المتصفح.*
 
 ### 3. إكمال الإعداد
+1. سجل الدخول إلى حساب جوجل الخاص بك على موقع Google Flow في نافذة المتصفح المفتوحة.
+2. انتظر حتى تتعرف صفحة الإعداد (`http://127.0.0.1:8787/setup`) على نجاح الدخول تلقائياً.
+3. انسخ الرابط، ومفتاح API، واسم النموذج المعروض في النهاية لاستخدامه في برامجك.
 
-في صفحة الإعداد:
+---
 
-1. سجل الدخول إلى Google Flow باتباع التعليمات
-2. انتظر حتى يكتشف النظام حالة تسجيل الدخول تلقائيًا
-3. دع الخدمة المحلية تكمل المزامنة تلقائيًا
-4. انسخ معلومات الـ API مباشرة من بطاقة المعلومات المعروضة
+## 📡 مرجع الواجهة البرمجية (API Reference)
 
-توفر صفحة الإعداد:
+### تفاصيل الاتصال الافتراضية
+* **الرابط الأساسي**: `http://127.0.0.1:8787/v1`
+* **مفتاح الـ API الافتراضي**: `flow-local-key`
 
-- `Open Login` (فتح تسجيل الدخول)
-- `Re-sync` (إعادة المزامنة)
-- `Reset Config` (إعادة تعيين الإعدادات)
-- بطاقات معلومات API سهلة القراءة بدلاً من عرض الـ JSON الخام
+### نقاط النهاية (Endpoints)
+* `POST /v1/images/generations` - توليد الصور من نصوص (Text-to-Image)
+* `POST /v1/images/edits` - توليد الصور من صور (Image-to-Image)
+* `GET /v1/models` - سرد قائمة النماذج والنسب المدعومة
+* `GET /health` - التحقق من سلامة الخدمة
+* `GET /setup` - معالج الإعداد التلقائي
 
-## معلومات الـ API الافتراضية
+---
 
-الإعدادات المحلية الافتراضية كالتالي:
+## 🐍 دليل استخدام مكتبة بايثون (FlowSDK)
 
-- الرابط الأساسي (Base URL): `http://127.0.0.1:8787/v1`
-- مفتاح API: `flow-local-key`
-
-إذا كنت ترغب في تغيير مفتاح API، يمكنك تعيينه قبل التشغيل عبر:
-
-```powershell
-$env:FLOW_API_KEY="your-own-key"
-```
-
-## الواجهات المدعومة (Endpoints)
-
-- `GET /health`
-- `GET /setup`
-- `GET /setup/status`
-- `POST /setup/open-login`
-- `POST /setup/finalize`
-- `POST /setup/reset`
-- `GET /v1/models`
-- `POST /v1/images/generations`
-- `POST /v1/images/edits`
-- `POST /v1/chat/completions`
-- `GET /v1/files/{filename}`
-
-## استخدام النماذج
-
-أمثلة لمعرفات النماذج (Model IDs) التي يمكن استخدامها مباشرة:
-
-- `gemini-3.1-flash-image-landscape`
-- `gemini-3.1-flash-image-portrait`
-- `gemini-3.1-flash-image-square`
-- `gemini-3.0-pro-image-landscape`
-- `imagen-4.0-generate-preview-landscape`
-- `nano-banana-2-landscape`
-- `nano-banana-2-portrait`
-- `nano-banana-2-square`
-- `nano-banana-2-ultrawide`
-- `nano-banana-pro-landscape`
-- `nano-banana-pro-portrait`
-- `nano-banana-pro-square`
-
-تدعم أيضاً الأسماء المستعارة لعائلات النماذج:
-
-- `gemini-3.1-flash-image`
-- `gemini-3.0-pro-image`
-- `imagen-4.0-generate-preview`
-- `nano banana2`
-- `nano banana pro`
-
-ملاحظة خاصة:
-
-- يدعم نموذج `nano banana2` فقط الأبعاد بنسبة `21:9`
-
-## تخطيط الأحجام والنسب
-
-لتسهيل استدعاء الطرف الثالث، تدعم طبقة التوافق هذه حقول الحجم الشائعة وتلميحات أكثر سهولة.
-
-تخطيط الأحجام:
-
-- `1K` -> الصورة الأصلية
-- `2K` -> تكبير بدقة 2K
-- `4K` -> تكبير بدقة 4K
-- `1024x1024` -> صورة مربعة
-- `1024x1536` -> صورة عمودية
-- `1536x1024` -> صورة أفقية
-
-تخطيط النسب والأبعاد:
-
-- `1:1` -> صورة مربعة
-- `9:16` -> صورة عمودية
-- `16:9` -> صورة أفقية
-- `21:9` -> صورة عريضة جداً (فقط مع `nano banana2`)
-
-تخطيط الجودة:
-
-- `standard` -> الصورة الأصلية
-- `hd` أو `2k` -> تكبير بدقة 2K
-- `4k` -> تكبير بدقة 4K
-
-يمكن للنظام أيضاً التعرف على التلميحات المضمنة في الوصف النصي (Prompt)، مثل:
-
-- `Preferred size: 4K`
-- `Preferred aspect ratio: 9:16`
-
-## أمثلة على الطلبات
-
-توليد صورة من نص (Text-to-Image):
-
-```bash
-curl http://127.0.0.1:8787/v1/images/generations ^
-  -H "Authorization: Bearer flow-local-key" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"model\":\"gemini-3.1-flash-image\",\"prompt\":\"a cinematic cat\",\"size\":\"1536x1024\",\"quality\":\"hd\",\"response_format\":\"url\"}"
-```
-
-توليد صورة من صورة (Image-to-Image):
-
-```bash
-curl http://127.0.0.1:8787/v1/images/edits ^
-  -H "Authorization: Bearer flow-local-key" ^
-  -F "model=gemini-3.1-flash-image" ^
-  -F "prompt=convert to watercolor" ^
-  -F "size=1024x1024" ^
-  -F "quality=2k" ^
-  -F "image=@input.jpg"
-```
-
-مثال على الاستدعاء باستخدام لغة Python:
+يمكنك استيراد المكتبة مباشرة داخل كود بايثون الخاص بك كالتالي:
 
 ```python
 import asyncio
 from flow_cli import FlowSDK
 
 async def main():
-    # استخدام FlowSDK برمجياً داخل كودك الخاص
-    async with FlowSDK(st_token="your-session-token-here") as sdk:
-        path = await sdk.generate(
-            prompt="a cinematic cat",
+    # الخيار 1: تجاوز الجلسة يدوياً بتوكن اتصال مباشر
+    async with FlowSDK(st_token="your-session-token", project_id="your-project-id") as sdk:
+        image_path = await sdk.generate(
+            prompt="A futuristic city in antigravity, neon lights, 4k",
             model="gemini-3.1-flash-image-landscape",
-            output_path="output/api_basic.png",
+            output_path="output/direct_t2i.png"
         )
-        print(f"Saved to: {path}")
+        print(f"تم حفظ الصورة في: {image_path}")
 
-asyncio.run(main())
+    # الخيار 2: الاختيار التلقائي للحساب (يستخرج التوكن والبروكسي تلقائياً من قاعدة بيانات SQLite)
+    async with FlowSDK() as sdk:
+        await sdk.select_profile("My_Google_Profile_Name")
+        image_path = await sdk.generate(
+            prompt="A majestic golden eagle flying over mountains",
+            model="gemini-3.1-flash-image-square",
+            output_path="output/profile_t2i.png"
+        )
+        print(f"تم حفظ الصورة في: {image_path}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
-لمزيد من أمثلة الاستدعاء، راجع ملف [API_USAGE.md](./API_USAGE.md).
+---
 
-## هيكلية المستودع
+## 📁 هيكلية المستودع
 
 ```text
-flow-image-cli/
-├── flow_cli/              # خدمات الـ API المحلية والـ CLI الأساسي
-├── install.bat            # التثبيت بنقرة واحدة
-├── start-flow-api.bat     # التشغيل بنقرة واحدة
-├── API_USAGE.md           # أمثلة واجهة برمجية متوافقة
-└── README.md
+flow-image-cli-local-api/
+├── flow_cli/              # الحزمة الأساسية الموحدة للمشروع
+│   ├── api/               # خادم ويب FastAPI ولوحة التحكم الرسومية
+│   ├── captcha/           # خطافات حل الكابتشا داخل العملية (In-process)
+│   ├── captcha_service/   # محرك حل الكابتشا (nodriver/playwright)
+│   ├── token_updater/     # خدمة تحديث ومراقبة الجلسات التلقائية
+│   ├── core/              # فئة الـ SDK والعميل البرمجي (FlowSDK)
+│   └── utils/             # أدوات التحليل المشتركة والبروكسي وقواعد البيانات
+├── examples/              # أمثلة استدعاء برمجية جاهزة للتشغيل
+├── release-package/       # أدوات بناء حزم التوزيع النظيفة للمستخدم النهائي
+├── install.bat            # سكريبت التثبيت بنقرة واحدة لويندوز
+├── start-flow-api.bat     # سكريبت بدء التشغيل بنقرة واحدة لويندوز
+├── API_USAGE.md           # أمثلة cURL وطلبات الـ API المتوافقة
+└── README-ar.md           # هذا الملف التوضيحي باللغة العربية
 ```
 
-## ملاحظات هامّة
+## 📦 بناء حزمة النشر والتوزيع (Release)
 
-- يستهدف هذا المستودع عمليات النشر المحلية على جهازك الخاص أو أي كمبيوتر آخر يعمل بنظام التشغيل Windows.
-- يحتاج المستخدم فقط إلى إكمال تسجيل الدخول إلى Google Flow.
-- يتم إكمال بقية الإعدادات والمزامنة تلقائيًا بواسطة الخدمة المحلية.
-- إذا كان الحساب نفسه لا يمتلك صلاحية توليد الصور على Flow أو صلاحية 4K، فستظل الطلبات مقيدة من قبل الخدمة الرئيسية.
+لمشاركة نسخة نظيفة خالية من مجلدات التطوير (مثل `.git` و `.venv` ومجلدات المخرجات المؤقتة):
+1. قم بتشغيل سكريبت البناء: `release-package\build-release-package.bat`
+2. ستجد الملف المضغوط جاهزاً للتوزيع في المسار التالي: `release-package\dist\flow-image-cli-local-api-v1.0.0.zip`
 
-## License
+## 📝 الترخيص
 
-MIT
+هذا المشروع مرخص بموجب ترخيص MIT.

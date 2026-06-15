@@ -1,273 +1,123 @@
-# Flow Image Local API
+# Flow Image Local API & Programmatic SDK (Unified)
 
-Arabic README: [README-ar.md](./README-ar.md)
+[![Python Version](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
-Flow Image Local API is a Windows-first local deployment for Google Flow image generation, exposed through an OpenAI-compatible API.
+Arabic Version: [README-ar.md](./README-ar.md) | Architecture Details: [ARCHITECTURE-ar.md](./ARCHITECTURE-ar.md)
 
-It is designed for a very simple delivery flow:
+This repository provides a unified local deployment of Google Flow image generation, exposed via an **OpenAI-compatible HTTP API** and a **high-level programmatic Python SDK**.
 
-- You send the project to another Windows PC
-- The user only logs in to Google Flow
-- The local service completes setup automatically
-- The user copies `URL`, `API Key`, and `Model` into any compatible third-party app
+---
 
-## Why This Project
+## 🌟 Key Features
 
-- No browser extension
-- No manual token copy/paste
-- One-click install and one-click startup
-- Friendly `/setup` completion page
-- OpenAI-compatible endpoints for third-party tools
-- Supports text-to-image and image-to-image
-- Supports `1K`, `2K`, `4K`, `1:1`, `9:16`, `16:9`, `21:9`
+1. **Guided Setup (`/setup`)**: A user-friendly web interface that opens automatically, detects Google Flow login states, and synchronizes tokens without manual copy-pasting.
+2. **Integrated Token Updater**: A background scheduling service that keeps session tokens alive across multiple profiles, supporting proxy isolation for each profile to prevent footprint leaks.
+3. **In-Process Captcha Solver**: Resolves reCAPTCHA challenges directly within the same Python process via Playwright/nodriver, eliminating separate bridge servers or port configurations.
+4. **Programmatic SDK (`FlowSDK`)**: A clean, thread-safe context manager to embed Google Flow image generation directly into other Python applications.
+5. **OpenAI-Compatible Endpoints**: Seamlessly connects to any third-party AI UI client (e.g., Cherry Studio, Next Chat) using standard `URL`, `API Key`, and `Model` configurations.
 
-The intended flow is simple:
+---
 
-1. Run `install.bat`
-2. Run `start-flow-api.bat`
-3. Sign in to Google Flow in the browser window that opens
-4. Wait for `/setup` to finish and copy the final `URL`, `API Key`, and `Model`
+## 🚀 Quick Start
 
-No browser extension is required.
+### 1. Installation
 
-## GitHub Summary
-
-This project turns Google Flow image generation into a local OpenAI-compatible API service for Windows.
-
-Best for:
-
-- Local self-hosting
-- Sending to friends or customers as a zip package
-- Connecting third-party apps to Flow with only `URL`, `API Key`, and `Model`
-
-## What This Repo Includes
-
-- Local OpenAI-compatible API service
-- Guided setup page at `/setup`
-- Automatic Flow login detection and token sync
-- Text-to-image and image-to-image generation
-- 1K / 2K / 4K output selection
-- Aspect ratio mapping for `1:1`, `9:16`, `16:9`, and `21:9`
-- Playwright-based local browser flow for Flow login / captcha handling
-
-## Requirements
-
-- Windows
-- Python 3.10 or newer
-- A Google account that can access Flow: <https://labs.google/fx>
-- Flow image generation permission on that account
-
-## Quick Start
-
-### 1. Install
-
-Double-click:
-
+Double-click the installer:
 ```bat
 install.bat
 ```
+*This will automatically create a `.venv`, install the package in editable mode, and download the Playwright Chromium browser.*
 
-What it does:
+### 2. Startup
 
-- Creates `.venv`
-- Installs Python dependencies
-- Installs the project in editable mode
-- Installs Playwright Chromium
-
-### 2. Start
-
-Double-click:
-
+Double-click the launcher:
 ```bat
 start-flow-api.bat
 ```
-
-This starts the local server and opens:
-
-- Setup page: `http://127.0.0.1:8787/setup`
-- API base URL: `http://127.0.0.1:8787/v1`
+*This starts the API server on port `8787` and automatically opens the setup interface in your browser.*
 
 ### 3. Complete Setup
+1. Log in to Google Flow on the browser window that opens.
+2. Wait for the setup page (`http://127.0.0.1:8787/setup`) to detect the active session.
+3. Copy the generated API URL, Key, and Model ID displayed on the screen.
 
-On the setup page:
+---
 
-1. Sign in to Google Flow when the browser opens
-2. Wait for the local service to detect the login
-3. Let the service finish token sync automatically
-4. Copy the displayed API information card
+## 📡 API Reference
 
-The setup page provides:
+### Connection Details
+* **Base URL**: `http://127.0.0.1:8787/v1`
+* **Default API Key**: `flow-local-key`
 
-- `Open Login`
-- `Re-sync`
-- `Reset Config`
-- Human-readable API result cards instead of raw JSON
+### Endpoints
+* `POST /v1/images/generations` - Text-to-Image generation
+* `POST /v1/images/edits` - Image-to-Image generation (watercolor, sketch, etc.)
+* `GET /v1/models` - List available models and aspect ratios
+* `GET /health` - Health check status
+* `GET /setup` - Configuration wizard
 
-## Release Package
+---
 
-This repository includes a dedicated packaging directory:
+## 🐍 Programmatic Python SDK Usage
 
-- [release-package/README.md](./release-package/README.md)
-- [release-package/build-release-package.bat](./release-package/build-release-package.bat)
-
-Run:
-
-```bat
-release-package\build-release-package.bat
-```
-
-It generates a clean distributable folder and a zip file under `release-package\dist\`.
-
-## API Information
-
-Default local configuration:
-
-- Base URL: `http://127.0.0.1:8787/v1`
-- API Key: `flow-local-key`
-
-You can change the API key by setting:
-
-```powershell
-$env:FLOW_API_KEY="your-own-key"
-```
-
-## Supported Endpoints
-
-- `GET /health`
-- `GET /setup`
-- `GET /setup/status`
-- `POST /setup/open-login`
-- `POST /setup/finalize`
-- `POST /setup/reset`
-- `GET /v1/models`
-- `POST /v1/images/generations`
-- `POST /v1/images/edits`
-- `POST /v1/chat/completions`
-- `GET /v1/files/{filename}`
-
-## Model Usage
-
-Examples of direct model IDs:
-
-- `gemini-3.1-flash-image-landscape`
-- `gemini-3.1-flash-image-portrait`
-- `gemini-3.1-flash-image-square`
-- `gemini-3.0-pro-image-landscape`
-- `imagen-4.0-generate-preview-landscape`
-- `nano-banana-2-landscape`
-- `nano-banana-2-portrait`
-- `nano-banana-2-square`
-- `nano-banana-2-ultrawide`
-- `nano-banana-pro-landscape`
-- `nano-banana-pro-portrait`
-- `nano-banana-pro-square`
-
-Family aliases also work:
-
-- `gemini-3.1-flash-image`
-- `gemini-3.0-pro-image`
-- `imagen-4.0-generate-preview`
-- `nano banana2`
-- `nano banana pro`
-
-Important note:
-
-- Only `nano banana2` supports `21:9`
-
-## Size And Aspect Ratio Mapping
-
-The compatible API accepts either standard image size hints or friendly values from third-party tools.
-
-Size mapping:
-
-- `1K` -> original output
-- `2K` -> 2K upscale
-- `4K` -> 4K upscale
-- `1024x1024` -> square
-- `1024x1536` -> portrait
-- `1536x1024` -> landscape
-
-Aspect ratio mapping:
-
-- `1:1` -> square
-- `9:16` -> portrait
-- `16:9` -> landscape
-- `21:9` -> ultrawide, `nano banana2` only
-
-Quality mapping:
-
-- `standard` -> original
-- `hd` or `2k` -> 2K upscale
-- `4k` -> 4K upscale
-
-The wrapper also reads friendly prompt hints such as:
-
-- `Preferred size: 4K`
-- `Preferred aspect ratio: 9:16`
-
-## Example Requests
-
-Text-to-image:
-
-```bash
-curl http://127.0.0.1:8787/v1/images/generations ^
-  -H "Authorization: Bearer flow-local-key" ^
-  -H "Content-Type: application/json" ^
-  -d "{\"model\":\"gemini-3.1-flash-image\",\"prompt\":\"a cinematic cat\",\"size\":\"1536x1024\",\"quality\":\"hd\",\"response_format\":\"url\"}"
-```
-
-Image-to-image:
-
-```bash
-curl http://127.0.0.1:8787/v1/images/edits ^
-  -H "Authorization: Bearer flow-local-key" ^
-  -F "model=gemini-3.1-flash-image" ^
-  -F "prompt=convert to watercolor" ^
-  -F "size=1024x1024" ^
-  -F "quality=2k" ^
-  -F "image=@input.jpg"
-```
-
-Python example:
+You can import and use the SDK directly inside your own Python projects:
 
 ```python
 import asyncio
 from flow_cli import FlowSDK
 
 async def main():
-    # Use FlowSDK programmatically inside your code
-    async with FlowSDK(st_token="your-session-token-here") as sdk:
-        path = await sdk.generate(
-            prompt="a cinematic cat",
+    # Option 1: Direct Session Token Override
+    async with FlowSDK(st_token="your-session-token", project_id="your-project-id") as sdk:
+        image_path = await sdk.generate(
+            prompt="A futuristic city in antigravity, neon lights, 4k",
             model="gemini-3.1-flash-image-landscape",
-            output_path="output/api_basic.png",
+            output_path="output/direct_t2i.png"
         )
-        print(f"Saved to: {path}")
+        print(f"Image saved to: {image_path}")
 
-asyncio.run(main())
+    # Option 2: Automatic Profile Selector (Querying local SQLite database)
+    async with FlowSDK() as sdk:
+        await sdk.select_profile("My_Google_Profile_Name")
+        image_path = await sdk.generate(
+            prompt="A majestic golden eagle flying over mountains",
+            model="gemini-3.1-flash-image-square",
+            output_path="output/profile_t2i.png"
+        )
+        print(f"Image saved to: {image_path}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
-More request examples are in [API_USAGE.md](./API_USAGE.md).
+---
 
-## Project Layout
+## 📁 Repository Structure
 
 ```text
-flow-image-cli/
-|-- flow_cli/              # Core CLI + local API server
-|-- release-package/       # Packaging tools for zip distribution
-|-- install.bat            # One-click installer
-|-- start-flow-api.bat     # One-click launcher
-|-- API_USAGE.md           # Compatible API examples
-`-- README.md
+flow-image-cli-local-api/
+├── flow_cli/              # Unified core package
+│   ├── api/               # FastAPI OpenAI web server & static dashboard
+│   ├── captcha/           # In-process captcha provider integrations
+│   ├── captcha_service/   # Integrated reCAPTCHA crawler (nodriver/playwright)
+│   ├── token_updater/     # Automated session renewal daemon
+│   ├── core/              # Programmatic SDK (FlowSDK) & API client
+│   └── utils/             # Shared parsing, DB, and proxy utilities
+├── examples/              # Programmatic usage examples
+├── release-package/       # Scripts to build clean distribution zip packages
+├── install.bat            # One-click installer for Windows
+├── start-flow-api.bat     # One-click launcher for Windows
+├── API_USAGE.md           # API endpoints & cURL request examples
+└── README.md
 ```
 
-## Notes
+## 📦 Building a Release
 
-- This repository is intended for local deployment on your own machine or another Windows PC.
-- The user only needs to complete Google Flow login.
-- The remaining setup is handled by the local service.
-- If the account does not have Flow image access or upscale permissions, generation or 4K output may fail upstream.
+To share a clean distribution folder (without `.git`, `.venv`, or local output folders) with friends or clients:
+1. Run `release-package\build-release-package.bat`
+2. Share the generated zip file located at `release-package\dist\flow-image-cli-local-api-v1.0.0.zip`
 
-## License
+## 📝 License
 
-MIT
+This project is licensed under the MIT License.
