@@ -9,9 +9,9 @@ import asyncio
 import os
 import sys
 
-from flow_cli import FlowSDK, InProcessCaptchaProvider
-from flow_cli.token_updater.browser import BrowserManager
-from flow_cli.token_updater.database import ProfileDB
+from google_flow import FlowSDK, InProcessCaptchaProvider
+from google_flow.token_updater.browser import BrowserManager
+from google_flow.token_updater.database import ProfileDB
 
 
 async def main() -> None:
@@ -36,7 +36,7 @@ async def main() -> None:
     print(f"1. Initializing profile database at '{db_path}'...")
     db = ProfileDB()
     # Explicitly set the db path to our unified path
-    from flow_cli.token_updater.config import config as updater_config
+    from google_flow.token_updater.config import config as updater_config
 
     updater_config.db_path = db_path
     await db.init()

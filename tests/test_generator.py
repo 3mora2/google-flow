@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from flow_cli.core.generator import ImageGenerator
+from google_flow.core.generator import ImageGenerator
 
 
 @pytest.fixture
@@ -49,7 +49,7 @@ async def test_ensure_project_creation(mock_generator):
     mock_generator.client.create_project.assert_called_once_with("mock-st-token")
 
 @pytest.mark.asyncio
-@patch("flow_cli.core.generator.download_image", new_callable=AsyncMock)
+@patch("google_flow.core.generator.download_image", new_callable=AsyncMock)
 async def test_generate_simple(mock_download, mock_generator):
     mock_generator.session.token.at = "at-token"
     mock_generator.session.token.project_id = "project-id"

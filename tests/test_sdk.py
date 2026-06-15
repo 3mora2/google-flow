@@ -2,8 +2,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from flow_cli.core.sdk import FlowSDK
-from flow_cli.types import CreditsInfo
+from google_flow.core.sdk import FlowSDK
+from google_flow.types import CreditsInfo
 
 
 @pytest.fixture
@@ -37,7 +37,7 @@ async def test_sdk_generate_and_credits(mock_config_paths, mock_sdk_generator):
         f.write("[flow]\ntimeout=50\n")
 
     # Mock the ImageGenerator instantiation inside SDK
-    with patch("flow_cli.core.generator.ImageGenerator", return_value=mock_sdk_generator):
+    with patch("google_flow.core.generator.ImageGenerator", return_value=mock_sdk_generator):
         async with FlowSDK(st_token="some-st", config_path=str(config_path)) as sdk:
             res = await sdk.generate("a cat", model="gemini-3.1-flash-image-landscape")
             assert res == "output/result.png"
@@ -70,7 +70,7 @@ async def test_sdk_select_profile(mock_config_paths):
     mock_db.init = AsyncMock()
     mock_db.get_profile_by_name = AsyncMock(return_value=mock_profile)
 
-    with patch("flow_cli.token_updater.database.ProfileDB", return_value=mock_db):
+    with patch("google_flow.token_updater.database.ProfileDB", return_value=mock_db):
         async with FlowSDK(st_token="initial-st", config_path=str(config_path)) as sdk:
             await sdk.select_profile("test-profile")
             assert sdk._session.token.st == "override-st-token"
@@ -88,12 +88,12 @@ async def test_sdk_db_path_override(mock_config_paths):
     mock_db.init = AsyncMock()
     mock_db.get_all_profiles = AsyncMock(return_value=[])
 
-    with patch("flow_cli.token_updater.database.ProfileDB", return_value=mock_db):
+    with patch("google_flow.token_updater.database.ProfileDB", return_value=mock_db):
         async with FlowSDK(
             st_token="initial-st",
             config_path=str(config_path),
             db_path="custom/path/to/flow.db",
         ) as sdk:
             await sdk.list_profiles()
-            from flow_cli.token_updater.config import config as updater_config
+            from google_flow.token_updater.config import config as updater_config
             assert updater_config.db_path == "custom/path/to/flow.db"

@@ -65,7 +65,7 @@ You can import and use the SDK directly inside your own Python projects:
 
 ```python
 import asyncio
-from flow_cli import FlowSDK
+from google_flow import FlowSDK
 
 async def main():
     # Option 1: Direct Session Token Override
@@ -97,7 +97,7 @@ if __name__ == "__main__":
 
 ```text
 flow-image-cli-local-api/
-├── flow_cli/              # Unified core package
+├── google_flow/              # Unified core package
 │   ├── api/               # FastAPI OpenAI web server & static dashboard
 │   ├── captcha/           # In-process captcha provider integrations
 │   ├── captcha_service/   # Integrated reCAPTCHA crawler (nodriver/playwright)

@@ -10,6 +10,14 @@ echo   Flow Image Local API Installer
 echo ==========================================
 echo.
 
+where uv >nul 2>nul
+if not errorlevel 1 (
+  set "USE_UV=1"
+  echo [INFO] Found uv package manager! Will use it for super-fast installation.
+) else (
+  set "USE_UV=0"
+)
+
 where py >nul 2>nul
 if not errorlevel 1 (
   set "PYTHON_CMD=py -3"
@@ -34,7 +42,11 @@ call %PYTHON_CMD% --version
 
 if not exist ".venv\\Scripts\\python.exe" (
   echo [2/6] Creating virtual environment...
-  call %PYTHON_CMD% -m venv .venv
+  if "%USE_UV%"=="1" (
+    call uv venv .venv
+  ) else (
+    call %PYTHON_CMD% -m venv .venv
+  )
   if errorlevel 1 (
     echo [ERROR] Failed to create virtual environment.
     pause
@@ -44,16 +56,24 @@ if not exist ".venv\\Scripts\\python.exe" (
   echo [2/6] Virtual environment already exists.
 )
 
-echo [3/6] Upgrading pip...
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
-if errorlevel 1 (
-  echo [ERROR] Failed to upgrade pip.
-  pause
-  exit /b 1
+echo [3/6] Upgrading installer/pip...
+if "%USE_UV%"=="1" (
+  echo [INFO] Using uv pip, skipping pip upgrade.
+) else (
+  .\.venv\Scripts\python.exe -m pip install --upgrade pip
+  if errorlevel 1 (
+    echo [ERROR] Failed to upgrade pip.
+    pause
+    exit /b 1
+  )
 )
 
 echo [4/6] Installing Python dependencies...
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+if "%USE_UV%"=="1" (
+  call uv pip install -r requirements.txt
+) else (
+  .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+)
 if errorlevel 1 (
   echo [ERROR] Failed to install requirements.
   pause
@@ -61,7 +81,11 @@ if errorlevel 1 (
 )
 
 echo [5/6] Installing project in editable mode...
-.\.venv\Scripts\python.exe -m pip install -e .
+if "%USE_UV%"=="1" (
+  call uv pip install -e .
+) else (
+  .\.venv\Scripts\python.exe -m pip install -e .
+)
 if errorlevel 1 (
   echo [ERROR] Failed to install project package.
   pause

@@ -65,7 +65,7 @@ start-flow-api.bat
 
 ```python
 import asyncio
-from flow_cli import FlowSDK
+from google_flow import FlowSDK
 
 async def main():
     # الخيار 1: تجاوز الجلسة يدوياً بتوكن اتصال مباشر
@@ -97,7 +97,7 @@ if __name__ == "__main__":
 
 ```text
 flow-image-cli-local-api/
-├── flow_cli/              # الحزمة الأساسية الموحدة للمشروع
+├── google_flow/              # الحزمة الأساسية الموحدة للمشروع
 │   ├── api/               # خادم ويب FastAPI ولوحة التحكم الرسومية
 │   ├── captcha/           # خطافات حل الكابتشا داخل العملية (In-process)
 │   ├── captcha_service/   # محرك حل الكابتشا (nodriver/playwright)

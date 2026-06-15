@@ -2,13 +2,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from flow_cli.config import AppConfig
-from flow_cli.core.client import FlowClient
+from google_flow.config import AppConfig
+from google_flow.core.client import FlowClient
 
 
 @pytest.fixture
 def mock_config_paths(tmp_path, monkeypatch):
-    config_dir = tmp_path / ".flow-cli"
+    config_dir = tmp_path / ".google-flow"
     config_dir.mkdir()
     config_path = config_dir / "config.toml"
     token_path = config_dir / "token.json"

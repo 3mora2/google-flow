@@ -85,7 +85,7 @@ It records the practical changes made during local deployment, debugging, packag
 5. Startup and packaging fixes
 
 - Fixed FLOW_API_KEY trimming so trailing spaces no longer break authentication.
-- Fixed start-flow-api.bat to stop old flow_cli.api_server processes before launching a new one.
+- Fixed start-flow-api.bat to stop old google_flow.api_server processes before launching a new one.
 - Fixed packaging issues where some test zips were incomplete and missed files such as:
   requirements.txt
   pyproject.toml
@@ -128,5 +128,5 @@ It records the practical changes made during local deployment, debugging, packag
   pyproject.toml
   install.bat
   start-flow-api.bat
-  flow_cli/
+  google_flow/
 - Prefer rebuilding packages from the source workspace instead of re-zipping older extracted test folders.

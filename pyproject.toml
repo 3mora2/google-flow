@@ -3,13 +3,13 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "flow-cli"
+name = "google-flow"
 version = "2.0.0"
 description = "Professional image generation library and OpenAI-compatible API for Google Flow"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
-authors = [{name = "Flow CLI"}]
+authors = [{name = "Google Flow"}]
 dependencies = [
     "curl-cffi>=0.7.0",
     "tomli>=2.0.0",
@@ -23,6 +23,7 @@ dependencies = [
     "apscheduler>=3.10.4",
     "python-dotenv>=1.0.1",
     "redis>=5.0.0",
+    "nodriver>=0.50.3",
 ]
 
 [project.optional-dependencies]
@@ -42,14 +43,14 @@ dev = [
 ]
 
 [project.scripts]
-flow-cli = "flow_cli.cli.commands:main"
-flow-api = "flow_cli.api.app:main"
-flow-captcha = "flow_cli.captcha_service.main:main"
-flow-updater = "flow_cli.token_updater.main:main"
+google-flow = "google_flow.cli.commands:main"
+google-flow-api = "google_flow.api.app:main"
+google-flow-captcha = "google_flow.captcha_service.main:main"
+google-flow-updater = "google_flow.token_updater.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["flow_cli*"]
+include = ["google_flow*"]
 
 [tool.ruff]
 line-length = 100

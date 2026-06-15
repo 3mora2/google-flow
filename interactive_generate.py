@@ -9,8 +9,8 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from flow_cli import ImageGenerator, get_config
-from flow_cli.models import DEFAULT_MODEL, IMAGE_MODELS
+from google_flow import ImageGenerator, get_config
+from google_flow.models import DEFAULT_MODEL, IMAGE_MODELS
 
 ASPECT_OPTIONS: List[Tuple[str, str, str]] = [
     ("landscape", "أفقي 16:9", "Landscape 16:9"),
@@ -105,8 +105,8 @@ def _ensure_st(lang: str) -> bool:
     session.token.st = st
     session.save()
     _safe_print(
-        "تم: تم حفظ رمز الجلسة ST في ~/.flow-cli/token.json",
-        "Done: ST saved to ~/.flow-cli/token.json",
+        "تم: تم حفظ رمز الجلسة ST في ~/.google-flow/token.json",
+        "Done: ST saved to ~/.google-flow/token.json",
         lang,
     )
     return True

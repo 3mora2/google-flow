@@ -7,7 +7,7 @@ from __future__ import annotations
 import asyncio
 import os
 
-from flow_cli import FlowSDK, InProcessCaptchaProvider
+from google_flow import FlowSDK, InProcessCaptchaProvider
 
 
 async def main() -> None:

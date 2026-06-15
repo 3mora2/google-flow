@@ -3,7 +3,7 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 from fastapi.testclient import TestClient
 
-from flow_cli.api.app import app
+from google_flow.api.app import app
 
 client = TestClient(app)
 
@@ -24,7 +24,7 @@ def test_list_models_authorized(monkeypatch):
     assert "data" in data
     assert any(m["id"] == "gemini-3.1-flash-image-landscape" for m in data["data"])
 
-@patch("flow_cli.api.routes.openai.ImageGenerator")
+@patch("google_flow.api.routes.openai.ImageGenerator")
 def test_generate_image_endpoint(mock_generator_class, monkeypatch):
     monkeypatch.setenv("FLOW_API_KEY", "test-key")
 
@@ -36,7 +36,7 @@ def test_generate_image_endpoint(mock_generator_class, monkeypatch):
     mock_generator.client.__aexit__ = AsyncMock(return_value=None)
     mock_generator_class.return_value = mock_generator
 
-    with patch("flow_cli.api.routes.openai.Path") as mock_path_class:
+    with patch("google_flow.api.routes.openai.Path") as mock_path_class:
         mock_path = MagicMock()
         mock_path.name = "test_image.png"
         mock_path_class.return_value = mock_path
@@ -57,7 +57,7 @@ def test_generate_image_endpoint(mock_generator_class, monkeypatch):
     assert "url" in res_data["data"][0]
     assert res_data["data"][0]["url"].endswith("/v1/files/test_image.png")
 
-@patch("flow_cli.api.routes.openai.ImageGenerator")
+@patch("google_flow.api.routes.openai.ImageGenerator")
 def test_chat_completions_endpoint(mock_generator_class, monkeypatch):
     monkeypatch.setenv("FLOW_API_KEY", "test-key")
 
@@ -68,7 +68,7 @@ def test_chat_completions_endpoint(mock_generator_class, monkeypatch):
     mock_generator.client.__aexit__ = AsyncMock(return_value=None)
     mock_generator_class.return_value = mock_generator
 
-    with patch("flow_cli.api.routes.openai.Path") as mock_path_class:
+    with patch("google_flow.api.routes.openai.Path") as mock_path_class:
         mock_path = MagicMock()
         mock_path.name = "chat_image.png"
         mock_path_class.return_value = mock_path
@@ -99,7 +99,7 @@ def test_chat_completions_endpoint(mock_generator_class, monkeypatch):
 
 
 def test_unified_routes():
-    from flow_cli.token_updater.database import profile_db
+    from google_flow.token_updater.database import profile_db
     print("\nTEST DEBUG - db_path:", os.path.abspath(profile_db.db_path))
     print("TEST DEBUG - cwd:", os.getcwd())
     print("TEST DEBUG - file exists:", os.path.exists(profile_db.db_path))

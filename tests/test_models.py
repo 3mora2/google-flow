@@ -1,14 +1,14 @@
 import pytest
 
-from flow_cli.exceptions import FlowModelNotFoundError
-from flow_cli.models.registry import (
+from google_flow.exceptions import FlowModelNotFoundError
+from google_flow.models.registry import (
     detect_orientation,
     get_model_config,
     list_model_ids,
     list_models,
     resolve_model,
 )
-from flow_cli.types import AspectRatio
+from google_flow.types import AspectRatio
 
 
 def test_model_registry_contents():

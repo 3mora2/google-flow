@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import asyncio
 
-from flow_cli import FlowSDK
+from google_flow import FlowSDK
 
 
 async def main() -> None:

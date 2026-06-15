@@ -1,12 +1,12 @@
-# معمارية تشغيل وتصميم مكتبة مشروع `flow_cli`
+# معمارية تشغيل وتصميم مكتبة مشروع `google_flow`
 
-يوفر هذا المستند شرحاً تفصيلياً معمقاً لهيكل وتصميم مشروع `flow_cli` الموحد بعد دمج كافة المكونات (محدث التوكنات التلقائي وجسر حل الكابتشا)، مع التركيز على شرح طريقة عمل الأكواد، تصميم الجداول، وتدفق البيانات لتمكين المطورين من استخدام المكتبة ككود داخلي في مشاريعهم الخاصة.
+يوفر هذا المستند شرحاً تفصيلياً معمقاً لهيكل وتصميم مشروع `google_flow` الموحد بعد دمج كافة المكونات (محدث التوكنات التلقائي وجسر حل الكابتشا)، مع التركيز على شرح طريقة عمل الأكواد، تصميم الجداول، وتدفق البيانات لتمكين المطورين من استخدام المكتبة ككود داخلي في مشاريعهم الخاصة.
 
 ---
 
 ## 1. أهداف التصميم وفلسفة الدمج (Design Goals)
 
-يهدف مشروع `flow_cli` الموحد إلى حل ثلاثة تحديات رئيسية في التعامل مع بوابة Google Flow:
+يهدف مشروع `google_flow` الموحد إلى حل ثلاثة تحديات رئيسية في التعامل مع بوابة Google Flow:
 1. **تخطي حماية الكابتشا (reCAPTCHA Bypass)**: عبر إدارة متصفح تلقائي (Playwright/nodriver) يقوم بتوليد رموز التحقق وتجديدها في الخلفية.
 2. **استمرارية الجلسات للحسابات المتعددة (Session Keep-Alive)**: عبر نظام ذكي يراقب صلاحية رموز الاتصال (Tokens) ويحدثها تلقائياً قبل انتهائها.
 3. **الدمج البرمجي السهل (SDK Integration)**: تجميع كل هذه التعقيدات خلف فئة بايثون موحدة (`FlowSDK`) يمكن تضمينها في أي تطبيق آخر كحزمة داخلية (In-Process Library).
@@ -16,7 +16,7 @@
 ## 2. البنية البرمجية والمكونات الأساسية (System Components)
 
 ### أ. واجهة الاستدعاء البرمجي الموحدة: `FlowSDK`
-تعتبر فئة `FlowSDK` (الموجودة في [flow_cli/core/sdk.py](file:///d:/projects/flow-image-cli-local-api/flow_cli/core/sdk.py)) المدخل الرئيسي للمطورين. 
+تعتبر فئة `FlowSDK` (الموجودة في [google_flow/core/sdk.py](file:///d:/projects/flow-image-cli-local-api/google_flow/core/sdk.py)) المدخل الرئيسي للمطورين. 
 
 **الخصائص التقنية لـ `FlowSDK`:**
 - **عزل التكوينات (Thread-Safe Config Isolation)**: عند الدخول في سياق تشغيل المكتبة `async with FlowSDK(...)` تقوم بحفظ الإعدادات العالمية الحالية وتطبيق إعدادات مخصصة للجلسة، ثم استعادتها تلقائياً عند الخروج. يمنع هذا التداخل عند تشغيل طلبات متوازية أو تضمينها في خوادم ويب أخرى.
@@ -27,7 +27,7 @@
 
 ### ب. مشغل الكابتشا الداخلي: `InProcessCaptchaProvider`
 تاريخياً، كانت خدمة حل الكابتشا تتطلب تشغيل خادم ويب مستقل (HTTP Bridge) لتلقي طلبات الحل.
-قمنا بإنشاء `InProcessCaptchaProvider` في [flow_cli/captcha/in_process_provider.py](file:///d:/projects/flow-image-cli-local-api/flow_cli/captcha/in_process_provider.py) ليقوم بـ:
+قمنا بإنشاء `InProcessCaptchaProvider` في [google_flow/captcha/in_process_provider.py](file:///d:/projects/flow-image-cli-local-api/google_flow/captcha/in_process_provider.py) ليقوم بـ:
 - ربط كود العميل مباشرة بـ `CaptchaRuntime` المحلي.
 - معالجة طلب تخطي الكابتشا وتسجيل الجلسة وإغلاقها برمجياً في الذاكرة مباشرة.
 - توفير أداء أسرع واستهلاك موارد أقل بنسبة 60% مع إزالة تعقيدات الشبكة والـ Ports.
@@ -140,7 +140,7 @@ graph TB
 
 ```python
 import asyncio
-from flow_cli.core.sdk import FlowSDK
+from google_flow.core.sdk import FlowSDK
 
 async def generate_simple():
     # تمرير التوكن ومعرف المشروع مباشرة للمكتبة
@@ -168,7 +168,7 @@ if __name__ == "__main__":
 
 ```python
 import asyncio
-from flow_cli.core.sdk import FlowSDK
+from google_flow.core.sdk import FlowSDK
 
 async def generate_with_profile():
     # اختيار الحساب المسجل مسبقاً في واجهة النظام بالاسم
@@ -205,7 +205,7 @@ if __name__ == "__main__":
 sequenceDiagram
     autonumber
     actor App as تطبيق المطور الخارجي
-    participant SDK as مكتبة FlowSDK (flow_cli)
+    participant SDK as مكتبة FlowSDK (google_flow)
     participant IPProvider as مشغل الكابتشا الداخلي
     participant Runtime as مشغل الكابتشا العام
     participant Browser as متصفح الويب (nodriver)

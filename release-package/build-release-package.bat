@@ -33,7 +33,7 @@ echo Creating package directory...
 mkdir "%TARGET_DIR%"
 
 echo Copying core files...
-xcopy /e /i /y "flow_cli" "%TARGET_DIR%\\flow_cli" >nul
+xcopy /e /i /y "google_flow" "%TARGET_DIR%\\google_flow" >nul
 copy /y "install.bat" "%TARGET_DIR%\\" >nul
 copy /y "start-flow-api.bat" "%TARGET_DIR%\\" >nul
 copy /y "API_USAGE.md" "%TARGET_DIR%\\" >nul

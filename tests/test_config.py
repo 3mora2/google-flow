@@ -1,4 +1,4 @@
-from flow_cli.config import AppConfig, get_config, reset_config
+from google_flow.config import AppConfig, get_config, reset_config
 
 
 def test_default_config():

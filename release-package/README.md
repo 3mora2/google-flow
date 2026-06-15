@@ -26,7 +26,7 @@ The script creates:
 
 ## What Gets Included
 
-- `flow_cli/`
+- `google_flow/`
 - `install.bat`
 - `start-flow-api.bat`
 - `API_USAGE.md`
