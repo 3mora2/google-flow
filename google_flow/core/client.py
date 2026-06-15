@@ -45,15 +45,15 @@ def _classify_error(exc: Exception) -> FlowError:
 
     if "http 401" in text or "unauthenticated" in text:
         return FlowTokenExpiredError(str(exc))
+    if "recaptcha" in text:
+        from google_flow.exceptions import FlowCaptchaError
+        return FlowCaptchaError(str(exc))
     if "http 403" in text:
         return FlowAuthError(str(exc))
     if "http 429" in text or "too many requests" in text:
         return FlowRateLimitError(str(exc))
     if "http 500" in text or "internal" in text:
         return FlowServerError(str(exc))
-    if "recaptcha" in text:
-        from google_flow.exceptions import FlowCaptchaError
-        return FlowCaptchaError(str(exc))
     if "timeout" in text:
         from google_flow.exceptions import FlowTimeoutError
         return FlowTimeoutError(str(exc))

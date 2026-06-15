@@ -151,8 +151,7 @@ class FlowSDK:
             await self._client.close()
 
         if (
-            self._owns_captcha_provider
-            and self.captcha_provider
+            self.captcha_provider
             and hasattr(self.captcha_provider, "close")
         ):
             await self.captcha_provider.close()
@@ -212,6 +211,10 @@ class FlowSDK:
         if not self._session:
             raise RuntimeError("SDK is not initialized. Use as an async context manager.")
 
+        import os
+        if isinstance(name_or_id, str) and (os.path.isdir(name_or_id) or "/" in name_or_id or "\\" in name_or_id):
+            return await self.select_profile_dir(name_or_id)
+
         from google_flow.token_updater.config import config as updater_config
         if self.db_path:
             updater_config.db_path = self.db_path
@@ -249,3 +252,40 @@ class FlowSDK:
         self._session.token.st = token
         self._session.token.at = ""  # Force refresh of access token
         logger.info("Successfully switched SDK to profile: %s", profile["name"])
+
+    async def select_profile_dir(self, profile_dir: str) -> None:
+        """Switch the SDK credentials to run under the selected profile directory."""
+        if not self._session:
+            raise RuntimeError("SDK is not initialized. Use as an async context manager.")
+
+        from google_flow.token_updater.browser import BrowserManager
+
+        manager = BrowserManager()
+        await manager.start()
+        try:
+            token = await manager.extract_token(profile_dir=profile_dir)
+        finally:
+            await manager.stop()
+
+        if not token:
+            raise ValueError(
+                f"Could not retrieve session token from profile directory '{profile_dir}'."
+            )
+
+        self._session.token.st = token
+        self._session.token.at = ""  # Force refresh of access token
+        logger.info("Successfully switched SDK to profile directory: %s", profile_dir)
+
+    async def is_profile_dir_logged_in(self, profile_dir: str) -> bool:
+        """Check if a profile directory has a valid active login session."""
+        from google_flow.token_updater.browser import BrowserManager
+
+        manager = BrowserManager()
+        await manager.start()
+        try:
+            status = await manager.check_login_status(profile_dir=profile_dir)
+            return bool(status.get("is_logged_in", False))
+        except Exception:
+            return False
+        finally:
+            await manager.stop()

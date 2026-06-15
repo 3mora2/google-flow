@@ -97,3 +97,68 @@ async def test_sdk_db_path_override(mock_config_paths):
             await sdk.list_profiles()
             from google_flow.token_updater.config import config as updater_config
             assert updater_config.db_path == "custom/path/to/flow.db"
+
+
+@pytest.mark.asyncio
+async def test_sdk_select_profile_dir(mock_config_paths, tmp_path):
+    config_path, token_path = mock_config_paths
+    with open(config_path, "w", encoding="utf-8") as f:
+        f.write("[flow]\ntimeout=50\n")
+
+    profile_dir = tmp_path / "dummy_profile"
+    profile_dir.mkdir()
+
+    mock_browser_manager = MagicMock()
+    mock_browser_manager.start = AsyncMock()
+    mock_browser_manager.stop = AsyncMock()
+    mock_browser_manager.extract_token = AsyncMock(return_value="dir-extracted-st-token")
+
+    with patch("google_flow.token_updater.browser.BrowserManager", return_value=mock_browser_manager):
+        async with FlowSDK(st_token="initial-st", config_path=str(config_path)) as sdk:
+            await sdk.select_profile_dir(str(profile_dir))
+            assert sdk._session.token.st == "dir-extracted-st-token"
+            assert sdk._session.token.at == ""  # Cleared AT so it refreshes
+            mock_browser_manager.extract_token.assert_called_once_with(profile_dir=str(profile_dir))
+
+
+@pytest.mark.asyncio
+async def test_sdk_select_profile_auto_detects_path(mock_config_paths, tmp_path):
+    config_path, token_path = mock_config_paths
+    with open(config_path, "w", encoding="utf-8") as f:
+        f.write("[flow]\ntimeout=50\n")
+
+    profile_dir = tmp_path / "dummy_profile"
+    profile_dir.mkdir()
+
+    mock_browser_manager = MagicMock()
+    mock_browser_manager.start = AsyncMock()
+    mock_browser_manager.stop = AsyncMock()
+    mock_browser_manager.extract_token = AsyncMock(return_value="dir-extracted-st-token-2")
+
+    with patch("google_flow.token_updater.browser.BrowserManager", return_value=mock_browser_manager):
+        async with FlowSDK(st_token="initial-st", config_path=str(config_path)) as sdk:
+            # Pass directory path
+            await sdk.select_profile(str(profile_dir))
+            assert sdk._session.token.st == "dir-extracted-st-token-2"
+            mock_browser_manager.extract_token.assert_called_once_with(profile_dir=str(profile_dir))
+
+
+@pytest.mark.asyncio
+async def test_sdk_is_profile_dir_logged_in(mock_config_paths, tmp_path):
+    config_path, token_path = mock_config_paths
+    with open(config_path, "w", encoding="utf-8") as f:
+        f.write("[flow]\ntimeout=50\n")
+
+    profile_dir = tmp_path / "dummy_profile"
+    profile_dir.mkdir()
+
+    mock_browser_manager = MagicMock()
+    mock_browser_manager.start = AsyncMock()
+    mock_browser_manager.stop = AsyncMock()
+    mock_browser_manager.check_login_status = AsyncMock(return_value={"success": True, "is_logged_in": True})
+
+    with patch("google_flow.token_updater.browser.BrowserManager", return_value=mock_browser_manager):
+        async with FlowSDK(st_token="initial-st", config_path=str(config_path)) as sdk:
+            logged_in = await sdk.is_profile_dir_logged_in(str(profile_dir))
+            assert logged_in is True
+            mock_browser_manager.check_login_status.assert_called_once_with(profile_dir=str(profile_dir))

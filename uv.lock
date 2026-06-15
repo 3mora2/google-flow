@@ -627,7 +627,7 @@ wheels = [
 ]
 
 [[package]]
-name = "flow-cli"
+name = "google-flow"
 version = "2.0.0"
 source = { editable = "." }
 dependencies = [
@@ -635,6 +635,7 @@ dependencies = [
     { name = "apscheduler" },
     { name = "curl-cffi" },
     { name = "fastapi" },
+    { name = "nodriver" },
     { name = "pillow" },
     { name = "playwright" },
     { name = "pydantic" },
@@ -670,6 +671,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.116.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.24.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8.0" },
+    { name = "nodriver", specifier = ">=0.50.3" },
     { name = "nodriver", marker = "extra == 'nodriver'", specifier = ">=0.50.3" },
     { name = "pillow", specifier = ">=9.0.0" },
     { name = "playwright", specifier = ">=1.52.0" },

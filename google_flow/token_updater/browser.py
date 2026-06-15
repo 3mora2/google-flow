@@ -94,6 +94,7 @@ class BrowserManager:
         self._playwright: Playwright | None = None
         self._active_context: BrowserContext | None = None
         self._active_profile_id: int | None = None
+        self._active_profile_dir: str | None = None
         self._lock = asyncio.Lock()
 
     async def start(self):
@@ -170,6 +171,7 @@ class BrowserManager:
                 await self._active_context.close()
             self._active_context = None
             self._active_profile_id = None
+            self._active_profile_dir = None
             logger.info("Browser is closed")
 
     def _get_profile_dir(self, profile_id: int) -> str:
@@ -861,11 +863,13 @@ class BrowserManager:
 
     async def _persist_login_state(
         self,
-        profile_id: int,
+        profile_id: int | None,
         token: str | None,
         email: str | None = None,
         is_logged_in: bool | None = None,
     ) -> None:
+        if profile_id is None:
+            return
         logged_in = bool(token) if is_logged_in is None else bool(is_logged_in)
         update_data: dict[str, Any] = {"is_logged_in": 1 if logged_in else 0}
         if token:
@@ -879,10 +883,12 @@ class BrowserManager:
 
     async def _save_google_cookies_from_context(
         self,
-        profile_id: int,
+        profile_id: int | None,
         context: BrowserContext,
     ) -> None:
         """Extract Google cookies from the browser context and store them for subsequent protocol refreshes"""
+        if profile_id is None:
+            return
         try:
             all_google_cookies = []
             for domain in [".google.com", "accounts.google.com"]:
@@ -976,15 +982,37 @@ class BrowserManager:
                 return cookie.get("value")
         return None
 
-    async def import_cookies(self, profile_id: int, cookies_json: str) -> dict[str, Any]:
+    async def import_cookies(
+        self,
+        profile_id: int | None = None,
+        cookies_json: str = "",
+        *,
+        profile_dir: str | None = None,
+    ) -> dict[str, Any]:
         """Import Cookie (JSON) and write it into the persistence profile"""
         if len(cookies_json) > 300_000:
             return {"success": False, "error": "The cookie content is too large (it is recommended to export only the cookies of the labs.google domain name)"}
 
         async with self._lock:
-            profile = await profile_db.get_profile(profile_id)
-            if not profile:
-                return {"success": False, "error": "Profile does not exist"}
+            if profile_id is not None:
+                profile = await profile_db.get_profile(profile_id)
+                if not profile:
+                    return {"success": False, "error": "Profile does not exist"}
+                resolved_dir = self._get_profile_dir(profile_id)
+            elif profile_dir is not None:
+                resolved_dir = os.path.abspath(profile_dir)
+                profile = {
+                    "id": None,
+                    "name": os.path.basename(resolved_dir.rstrip(r"\/")),
+                    "login_account": None,
+                    "login_password": None,
+                    "proxy_enabled": False,
+                    "proxy_url": None,
+                    "connection_token_override": None,
+                    "is_logged_in": 0,
+                }
+            else:
+                return {"success": False, "error": "Either profile_id or profile_dir must be provided"}
 
             try:
                 raw = self._parse_cookies_payload(cookies_json)
@@ -1003,13 +1031,12 @@ class BrowserManager:
                 if not self._playwright:
                     await self.start()
 
-                profile_dir = self._get_profile_dir(profile_id)
-                os.makedirs(profile_dir, exist_ok=True)
-                self._clean_locks(profile_dir)
+                os.makedirs(resolved_dir, exist_ok=True)
+                self._clean_locks(resolved_dir)
                 proxy = await self._get_proxy(profile)
 
                 context = await self._playwright.chromium.launch_persistent_context(
-                    user_data_dir=profile_dir,
+                    user_data_dir=resolved_dir,
                     headless=True,
                     viewport={"width": 1024, "height": 768},
                     locale="en-US",
@@ -1039,29 +1066,55 @@ class BrowserManager:
                     with contextlib.suppress(Exception):
                         await context.close()
 
-    async def export_cookies(self, profile_id: int) -> dict[str, Any]:
+    async def export_cookies(
+        self,
+        profile_id: int | None = None,
+        *,
+        profile_dir: str | None = None,
+    ) -> dict[str, Any]:
         """Export labs.google domain name Cookie, the format is compatible with the import interface."""
         async with self._lock:
-            profile = await profile_db.get_profile(profile_id)
-            if not profile:
-                return {"success": False, "error": "Profile does not exist"}
+            if profile_id is not None:
+                profile = await profile_db.get_profile(profile_id)
+                if not profile:
+                    return {"success": False, "error": "Profile does not exist"}
+                resolved_dir = self._get_profile_dir(profile_id)
+            elif profile_dir is not None:
+                resolved_dir = os.path.abspath(profile_dir)
+                profile = {
+                    "id": None,
+                    "name": os.path.basename(resolved_dir.rstrip(r"\/")),
+                    "login_account": None,
+                    "login_password": None,
+                    "proxy_enabled": False,
+                    "proxy_url": None,
+                    "connection_token_override": None,
+                    "is_logged_in": 0,
+                }
+            else:
+                return {"success": False, "error": "Either profile_id or profile_dir must be provided"}
 
             context = None
             try:
-                if self._active_profile_id == profile_id and self._active_context:
+                is_active = False
+                if profile_id is not None and self._active_profile_id == profile_id:
+                    is_active = True
+                elif profile_dir is not None and self._active_profile_dir == resolved_dir:
+                    is_active = True
+
+                if is_active and self._active_context:
                     cookies = await self._active_context.cookies("https://labs.google")
                 else:
-                    profile_dir = self._get_profile_dir(profile_id)
-                    if not os.path.exists(profile_dir):
+                    if not os.path.exists(resolved_dir):
                         return {"success": False, "error": "No persistent data, please log in or import session data first"}
 
                     if not self._playwright:
                         await self.start()
 
-                    self._clean_locks(profile_dir)
+                    self._clean_locks(resolved_dir)
                     proxy = await self._get_proxy(profile)
                     context = await self._playwright.chromium.launch_persistent_context(
-                        user_data_dir=profile_dir,
+                        user_data_dir=resolved_dir,
                         headless=True,
                         viewport={"width": 1024, "height": 768},
                         locale="en-US",
@@ -1078,7 +1131,7 @@ class BrowserManager:
                 return {
                     "success": True,
                     "kind": "session",
-                    "source": "active_context" if self._active_profile_id == profile_id and self._active_context else "browser_profile",
+                    "source": "active_context" if is_active and self._active_context else "browser_profile",
                     "profile_id": profile_id,
                     "profile_name": profile.get("name") or "",
                     "cookies": cookies,
@@ -1096,7 +1149,12 @@ class BrowserManager:
                     with contextlib.suppress(Exception):
                         await context.close()
 
-    async def launch_for_login(self, profile_id: int) -> bool:
+    async def launch_for_login(
+        self,
+        profile_id: int | None = None,
+        *,
+        profile_dir: str | None = None,
+    ) -> bool:
         """Launch a browser for VNC login (non-headless)"""
         if not config.enable_vnc:
             logger.warning("VNC login disabled (enabled by setting ENABLE_VNC=1)")
@@ -1104,9 +1162,26 @@ class BrowserManager:
         async with self._lock:
             await self._close_active()
 
-            profile = await profile_db.get_profile(profile_id)
-            if not profile:
-                logger.error(f"Profile {profile_id} does not exist")
+            if profile_id is not None:
+                profile = await profile_db.get_profile(profile_id)
+                if not profile:
+                    logger.error(f"Profile {profile_id} does not exist")
+                    return False
+                resolved_dir = self._get_profile_dir(profile_id)
+            elif profile_dir is not None:
+                resolved_dir = os.path.abspath(profile_dir)
+                profile = {
+                    "id": None,
+                    "name": os.path.basename(resolved_dir.rstrip(r"\/")),
+                    "login_account": None,
+                    "login_password": None,
+                    "proxy_enabled": False,
+                    "proxy_url": None,
+                    "connection_token_override": None,
+                    "is_logged_in": 0,
+                }
+            else:
+                logger.error("Either profile_id or profile_dir must be provided")
                 return False
 
             try:
@@ -1118,14 +1193,13 @@ class BrowserManager:
                     logger.error(f"[{profile['name']}] VNC service failed to start")
                     return False
 
-                profile_dir = self._get_profile_dir(profile_id)
-                os.makedirs(profile_dir, exist_ok=True)
-                self._clean_locks(profile_dir)  # Clean up lock files
+                os.makedirs(resolved_dir, exist_ok=True)
+                self._clean_locks(resolved_dir)  # Clean up lock files
                 proxy = await self._get_proxy(profile)
 
                 # Non-headless, for VNC login
                 self._active_context = await self._playwright.chromium.launch_persistent_context(
-                    user_data_dir=profile_dir,
+                    user_data_dir=resolved_dir,
                     headless=False,  # VNC visible
                     viewport={"width": 1024, "height": 768},
                     locale="en-US",
@@ -1135,6 +1209,7 @@ class BrowserManager:
                     ignore_default_args=["--enable-automation"],
                 )
                 self._active_profile_id = profile_id
+                self._active_profile_dir = resolved_dir
 
                 page = self._active_context.pages[0] if self._active_context.pages else await self._active_context.new_page()
                 await page.goto(config.labs_url, wait_until="domcontentloaded")
@@ -1146,16 +1221,41 @@ class BrowserManager:
                 logger.error(f"[{profile['name']}] failed to start: {e}")
                 return False
 
-    async def close_browser(self, profile_id: int) -> dict[str, Any]:
+    async def close_browser(
+        self,
+        profile_id: int | None = None,
+        *,
+        profile_dir: str | None = None,
+    ) -> dict[str, Any]:
         """Close browser and save state"""
         async with self._lock:
-            if self._active_profile_id != profile_id:
+            resolved_dir = os.path.abspath(profile_dir) if profile_dir else None
+            is_active = False
+            if profile_id is not None and self._active_profile_id == profile_id:
+                is_active = True
+                resolved_dir = self._get_profile_dir(profile_id)
+            elif resolved_dir is not None and self._active_profile_dir == resolved_dir:
+                is_active = True
+
+            if not is_active:
                 return {"success": False, "error": "The Profile browser is not running"}
 
             if self._active_context:
                 # Check login status
                 is_logged_in = False
-                profile = await profile_db.get_profile(profile_id)
+                if profile_id is not None:
+                    profile = await profile_db.get_profile(profile_id)
+                else:
+                    profile = {
+                        "id": None,
+                        "name": os.path.basename(resolved_dir.rstrip(r"\/")),
+                        "login_account": None,
+                        "login_password": None,
+                        "proxy_enabled": False,
+                        "proxy_url": None,
+                        "connection_token_override": None,
+                        "is_logged_in": 0,
+                    }
                 try:
                     cookies = await self._active_context.cookies("https://labs.google")
                     is_logged_in = any(c["name"] == config.session_cookie_name for c in cookies)
@@ -1168,33 +1268,59 @@ class BrowserManager:
                     email=self._resolve_known_email(profile or {}),
                     is_logged_in=is_logged_in,
                 )
-                if is_logged_in:
+                if is_logged_in and profile_id is not None:
                     await self._save_google_cookies_from_context(profile_id, self._active_context)
                 await self._close_active()
                 await self._stop_vnc_stack()
 
                 status = "Logged in" if is_logged_in else "Not logged in"
-                logger.info(f"Profile {profile_id} browser is closed, status: {status}")
+                ident = f"Profile {profile_id}" if profile_id is not None else f"Profile dir {resolved_dir}"
+                logger.info(f"{ident} browser is closed, status: {status}")
                 return {"success": True, "is_logged_in": is_logged_in}
 
             return {"success": True}
 
-    async def extract_token(self, profile_id: int) -> str | None:
+    async def extract_token(
+        self,
+        profile_id: int | None = None,
+        *,
+        profile_dir: str | None = None,
+    ) -> str | None:
         """Extract Token (Headless mode, using persistence context)"""
         async with self._lock:
-            profile = await profile_db.get_profile(profile_id)
-            if not profile:
-                return None
-
-            profile_dir = self._get_profile_dir(profile_id)
+            if profile_id is not None:
+                profile = await profile_db.get_profile(profile_id)
+                if not profile:
+                    return None
+                resolved_dir = self._get_profile_dir(profile_id)
+            elif profile_dir is not None:
+                resolved_dir = os.path.abspath(profile_dir)
+                profile = {
+                    "id": None,
+                    "name": os.path.basename(resolved_dir.rstrip(r"\/")),
+                    "login_account": None,
+                    "login_password": None,
+                    "proxy_enabled": False,
+                    "proxy_url": None,
+                    "connection_token_override": None,
+                    "is_logged_in": 0,
+                }
+            else:
+                raise ValueError("Either profile_id or profile_dir must be provided")
 
             # Check if there is persistent data
-            if not os.path.exists(profile_dir):
+            if not os.path.exists(resolved_dir):
                 logger.warning(f"[{profile['name']}] No persistent data, please log in first")
                 return None
 
             # If the current profile browser is running (VNC login), extract it directly
-            if self._active_profile_id == profile_id and self._active_context:
+            is_active = False
+            if profile_id is not None and self._active_profile_id == profile_id:
+                is_active = True
+            elif self._active_profile_dir == resolved_dir:
+                is_active = True
+
+            if is_active and self._active_context:
                 return await self._extract_from_context(profile, self._active_context)
 
             # Otherwise, start in headless mode
@@ -1203,15 +1329,14 @@ class BrowserManager:
                 if not self._playwright:
                     await self.start()
 
-                profile_dir = self._get_profile_dir(profile_id)
-                self._clean_locks(profile_dir)  # Clean up lock files
+                self._clean_locks(resolved_dir)  # Clean up lock files
                 proxy = await self._get_proxy(profile)
 
                 logger.info(f"[{profile['name']}] Headless mode extraction Token...")
 
                 # Headless + persistence context
                 context = await self._playwright.chromium.launch_persistent_context(
-                    user_data_dir=profile_dir,
+                    user_data_dir=resolved_dir,
                     headless=True,  # Headless saves resources
                     viewport={"width": 1024, "height": 768},
                     locale="en-US",
@@ -1268,14 +1393,40 @@ class BrowserManager:
                 with contextlib.suppress(Exception):
                     await page.close()
 
-    async def auto_login(self, profile_id: int) -> dict[str, Any]:
-        profile = await profile_db.get_profile(profile_id)
-        if not profile:
-            return {"success": False, "error": "Profile does not exist"}
+    async def auto_login(
+        self,
+        profile_id: int | None = None,
+        *,
+        profile_dir: str | None = None,
+        login_account: str | None = None,
+        login_password: str | None = None,
+        proxy_url: str | None = None,
+    ) -> dict[str, Any]:
+        if profile_id is not None:
+            profile = await profile_db.get_profile(profile_id)
+            if not profile:
+                return {"success": False, "error": "Profile does not exist"}
+            resolved_dir = self._get_profile_dir(profile_id)
+            acc = str(profile.get("login_account") or "").strip()
+            pwd = str(profile.get("login_password") or "").strip()
+        elif profile_dir is not None:
+            resolved_dir = os.path.abspath(profile_dir)
+            acc = str(login_account or "").strip()
+            pwd = str(login_password or "").strip()
+            profile = {
+                "id": None,
+                "name": os.path.basename(resolved_dir.rstrip(r"\/")),
+                "login_account": acc,
+                "login_password": pwd,
+                "proxy_enabled": bool(proxy_url),
+                "proxy_url": proxy_url,
+                "connection_token_override": None,
+                "is_logged_in": 0,
+            }
+        else:
+            return {"success": False, "error": "Either profile_id or profile_dir must be provided"}
 
-        login_account = str(profile.get("login_account") or "").strip()
-        login_password = str(profile.get("login_password") or "").strip()
-        if not login_account or not login_password:
+        if not acc or not pwd:
             return {"success": False, "error": "Please configure the login account and password for this account first"}
 
         async with self._lock:
@@ -1288,16 +1439,15 @@ class BrowserManager:
                 if not self._playwright:
                     await self.start()
 
-                profile_dir = self._get_profile_dir(profile_id)
-                os.makedirs(profile_dir, exist_ok=True)
-                self._clean_locks(profile_dir)
+                os.makedirs(resolved_dir, exist_ok=True)
+                self._clean_locks(resolved_dir)
                 proxy = await self._get_proxy(profile)
 
                 if config.enable_vnc:
                     use_vnc = await self._ensure_vnc_stack()
 
                 context = await self._playwright.chromium.launch_persistent_context(
-                    user_data_dir=profile_dir,
+                    user_data_dir=resolved_dir,
                     headless=not use_vnc,
                     viewport={"width": 1280, "height": 900},
                     locale="en-US",
@@ -1331,7 +1481,7 @@ class BrowserManager:
                     if await self._handle_managed_account_prompts(page, body_text):
                         continue
 
-                    if await self._advance_google_login(page, login_account, login_password):
+                    if await self._advance_google_login(page, acc, pwd):
                         continue
 
                     if await self._handle_labs_onboarding(page, body_text):
@@ -1352,7 +1502,8 @@ class BrowserManager:
                 if not token:
                     return {"success": False, "error": "The session token was not obtained, please use manual login instead."}
 
-                await self._save_google_cookies_from_context(profile_id, context)
+                if profile_id is not None:
+                    await self._save_google_cookies_from_context(profile_id, context)
 
                 return {
                     "success": True,
@@ -1374,13 +1525,33 @@ class BrowserManager:
                 if use_vnc:
                     await self._stop_vnc_stack()
 
-    async def check_login_status(self, profile_id: int) -> dict[str, Any]:
+    async def check_login_status(
+        self,
+        profile_id: int | None = None,
+        *,
+        profile_dir: str | None = None,
+    ) -> dict[str, Any]:
         """Check login status"""
-        profile = await profile_db.get_profile(profile_id)
-        if not profile:
-            return {"success": False, "error": "Profile does not exist"}
+        if profile_id is not None:
+            profile = await profile_db.get_profile(profile_id)
+            if not profile:
+                return {"success": False, "error": "Profile does not exist"}
+        elif profile_dir is not None:
+            resolved_dir = os.path.abspath(profile_dir)
+            profile = {
+                "id": None,
+                "name": os.path.basename(resolved_dir.rstrip(r"\/")),
+                "login_account": None,
+                "login_password": None,
+                "proxy_enabled": False,
+                "proxy_url": None,
+                "connection_token_override": None,
+                "is_logged_in": 0,
+            }
+        else:
+            return {"success": False, "error": "Either profile_id or profile_dir must be provided"}
 
-        token = await self.peek_token(profile_id)
+        token = await self.peek_token(profile_id, profile_dir=profile_dir)
         await self._persist_login_state(
             profile_id,
             token,
@@ -1392,18 +1563,44 @@ class BrowserManager:
             "profile_name": profile["name"]
         }
 
-    async def peek_token(self, profile_id: int) -> str | None:
+    async def peek_token(
+        self,
+        profile_id: int | None = None,
+        *,
+        profile_dir: str | None = None,
+    ) -> str | None:
         """Obtain the token lightly (no access to the page, only read the cookie)"""
         async with self._lock:
-            profile = await profile_db.get_profile(profile_id)
-            if not profile:
+            if profile_id is not None:
+                profile = await profile_db.get_profile(profile_id)
+                if not profile:
+                    return None
+                resolved_dir = self._get_profile_dir(profile_id)
+            elif profile_dir is not None:
+                resolved_dir = os.path.abspath(profile_dir)
+                profile = {
+                    "id": None,
+                    "name": os.path.basename(resolved_dir.rstrip(r"\/")),
+                    "login_account": None,
+                    "login_password": None,
+                    "proxy_enabled": False,
+                    "proxy_url": None,
+                    "connection_token_override": None,
+                    "is_logged_in": 0,
+                }
+            else:
+                raise ValueError("Either profile_id or profile_dir must be provided")
+
+            if not os.path.exists(resolved_dir):
                 return None
 
-            profile_dir = self._get_profile_dir(profile_id)
-            if not os.path.exists(profile_dir):
-                return None
+            is_active = False
+            if profile_id is not None and self._active_profile_id == profile_id:
+                is_active = True
+            elif self._active_profile_dir == resolved_dir:
+                is_active = True
 
-            if self._active_profile_id == profile_id and self._active_context:
+            if is_active and self._active_context:
                 return await self._get_session_cookie(self._active_context)
 
             context = None
@@ -1411,10 +1608,10 @@ class BrowserManager:
                 if not self._playwright:
                     await self.start()
 
-                self._clean_locks(profile_dir)
+                self._clean_locks(resolved_dir)
                 proxy = await self._get_proxy(profile)
                 context = await self._playwright.chromium.launch_persistent_context(
-                    user_data_dir=profile_dir,
+                    user_data_dir=resolved_dir,
                     headless=True,
                     viewport={"width": 1024, "height": 768},
                     locale="en-US",
@@ -1431,12 +1628,23 @@ class BrowserManager:
                     with contextlib.suppress(Exception):
                         await context.close()
 
-    async def delete_profile_data(self, profile_id: int):
+    async def delete_profile_data(
+        self,
+        profile_id: int | None = None,
+        *,
+        profile_dir: str | None = None,
+    ):
         """Delete profile data"""
-        profile_dir = self._get_profile_dir(profile_id)
-        if os.path.exists(profile_dir):
-            shutil.rmtree(profile_dir)
-            logger.info(f"Deleted: {profile_dir}")
+        if profile_id is not None:
+            resolved_dir = self._get_profile_dir(profile_id)
+        elif profile_dir is not None:
+            resolved_dir = os.path.abspath(profile_dir)
+        else:
+            raise ValueError("Either profile_id or profile_dir must be provided")
+
+        if os.path.exists(resolved_dir):
+            shutil.rmtree(resolved_dir)
+            logger.info(f"Deleted: {resolved_dir}")
 
     def get_active_profile_id(self) -> int | None:
         return self._active_profile_id
@@ -1447,6 +1655,7 @@ class BrowserManager:
         return {
             "is_running": self._playwright is not None,
             "active_profile_id": self._active_profile_id,
+            "active_profile_dir": self._active_profile_dir,
             "has_active_browser": self._active_context is not None,
             "profiles_dir": config.profiles_dir,
             "enable_vnc": bool(config.enable_vnc),

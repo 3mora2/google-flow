@@ -60,7 +60,7 @@ def _build_config() -> Config:
     flow2api_url = _get_env("FLOW2API_URL") or persisted.get("flow2api_url") or "http://127.0.0.1:8787"
     connection_token = _get_env("CONNECTION_TOKEN") or persisted.get("connection_token", "")
     refresh_interval = parse_int(_get_env("REFRESH_INTERVAL") or str(persisted.get("refresh_interval", 60)), 60)
-    enable_vnc = parse_bool(_get_env("ENABLE_VNC"), default=True)
+    enable_vnc = parse_bool(_get_env("ENABLE_VNC"), default=False)
 
     return Config(
         admin_password=_get_env("ADMIN_PASSWORD") or "",
