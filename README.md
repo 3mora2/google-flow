@@ -1,6 +1,6 @@
 # Flow Image Local API
 
-Chinese README: [README-zh.md](./README-zh.md)
+Arabic README: [README-ar.md](./README-ar.md)
 
 Flow Image Local API is a Windows-first local deployment for Google Flow image generation, exposed through an OpenAI-compatible API.
 
@@ -232,16 +232,17 @@ Python example:
 
 ```python
 import asyncio
-from flow_cli.client import ImageGenerator
+from flow_cli import FlowSDK
 
 async def main():
-    g = ImageGenerator()
-    path = await g.generate(
-        prompt="a cinematic cat",
-        model="gemini-3.1-flash-image-landscape",
-        output_path="output/api_basic.png",
-    )
-    print(path)
+    # Use FlowSDK programmatically inside your code
+    async with FlowSDK(st_token="your-session-token-here") as sdk:
+        path = await sdk.generate(
+            prompt="a cinematic cat",
+            model="gemini-3.1-flash-image-landscape",
+            output_path="output/api_basic.png",
+        )
+        print(f"Saved to: {path}")
 
 asyncio.run(main())
 ```

@@ -38,7 +38,7 @@ copy /y "install.bat" "%TARGET_DIR%\\" >nul
 copy /y "start-flow-api.bat" "%TARGET_DIR%\\" >nul
 copy /y "API_USAGE.md" "%TARGET_DIR%\\" >nul
 copy /y "README.md" "%TARGET_DIR%\\" >nul
-copy /y "README-zh.md" "%TARGET_DIR%\\" >nul
+copy /y "README-ar.md" "%TARGET_DIR%\\" >nul
 copy /y "requirements.txt" "%TARGET_DIR%\\" >nul
 copy /y "pyproject.toml" "%TARGET_DIR%\\" >nul
 copy /y "config.toml" "%TARGET_DIR%\\" >nul

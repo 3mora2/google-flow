@@ -45,3 +45,7 @@ Thumbs.db
 output/
 docs/
 release-package/dist/
+data/
+temp_repos/
+scratch/
+

@@ -31,7 +31,7 @@ The script creates:
 - `start-flow-api.bat`
 - `API_USAGE.md`
 - `README.md`
-- `README-zh.md`
+- `README-ar.md`
 - `requirements.txt`
 - `pyproject.toml`
 - `config.toml`
