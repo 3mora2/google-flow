@@ -47,3 +47,14 @@ def test_ensure_browser_installed_chromium(mock_run: MagicMock, mock_install: Ma
     mock_install.return_value = True
     assert _ensure_browser_installed("chromium") is True
     mock_install.assert_called_with(browser_type="chromium", use_mirror=False)
+
+
+@patch("google_flow.captcha_service.services.browser_captcha._run_playwright_install")
+@patch("google_flow.captcha_service.services.browser_captcha._is_chrome_installed")
+def test_ensure_browser_installed_default(mock_is_chrome: MagicMock, mock_install: MagicMock) -> None:
+    # By default, it should check and install chrome
+    mock_is_chrome.return_value = True
+    assert _ensure_browser_installed() is True
+    mock_is_chrome.assert_called_once()
+    mock_install.assert_not_called()
+

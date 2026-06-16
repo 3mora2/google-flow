@@ -87,7 +87,7 @@ def _run_pip_install(package: str, use_mirror: bool = False) -> bool:
         return False
 
 
-def _run_playwright_install(browser_type: str = "chromium", use_mirror: bool = False) -> bool:
+def _run_playwright_install(browser_type: str = "chrome", use_mirror: bool = False) -> bool:
     """Install playwright browser (chrome or chromium)"""
     cmd = [sys.executable, '-m', 'playwright', 'install', browser_type]
     env = os.environ.copy()
@@ -184,7 +184,7 @@ def _is_chrome_installed() -> bool:
         return False
 
 
-def _ensure_browser_installed(browser_type: str = "chromium") -> bool:
+def _ensure_browser_installed(browser_type: str = "chrome") -> bool:
     """Make sure specified browser (chrome or chromium) is installed"""
     browser_type = browser_type.lower().strip()
     if browser_type == "chrome":
@@ -258,7 +258,7 @@ else:
             from playwright.async_api import BrowserContext, Route, async_playwright
             PLAYWRIGHT_AVAILABLE = True
             # Check and install browser
-            browser_type = os.environ.get("FLOW_BROWSER_TYPE") or os.environ.get("FCS_BROWSER_TYPE") or "chromium"
+            browser_type = os.environ.get("FLOW_BROWSER_TYPE") or os.environ.get("FCS_BROWSER_TYPE") or "chrome"
             _ensure_browser_installed(browser_type)
         except ImportError as e:
             debug_logger.log_error(f"[BrowserCaptcha] playwright import failed: {e}")
