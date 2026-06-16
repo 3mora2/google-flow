@@ -1,5 +1,6 @@
 # Flow Image Local API & Programmatic SDK (Unified)
 
+[![PyPI Version](https://img.shields.io/pypi/v/google-flow.svg)](https://pypi.org/project/google-flow/)
 [![Python Version](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
@@ -21,19 +22,27 @@ This repository provides a unified local deployment of Google Flow image generat
 
 ## 🚀 Quick Start
 
-### 1. Installation
+### 1. Installation & Setup
 
-#### Option A: Install from PyPI (Recommended for SDK usage)
+Choose one of the following methods:
+
+#### 📦 Method A: Install via PyPI (Recommended for SDK & Global CLI)
+This is the easiest way to use the library programmatically or run the API/CLI globally:
 ```bash
 pip install google-flow
 ```
+Once installed, you can use the global CLI commands directly:
+* **Start API Server**: `google-flow-api`
+* **Run CLI**: `google-flow --help`
 
-#### Option B: Local Setup & Server Dashboard
-Double-click the installer:
-```bat
-install.bat
-```
-*This will automatically create a `.venv`, install the package in editable mode, and download the Playwright Chromium browser.*
+#### 🛠️ Method B: Local Clone & Setup (Recommended for Development)
+If you want to run the server locally with a dedicated virtual environment and quick-launch script:
+1. Clone the repository and navigate to the directory.
+2. Double-click the installer:
+   ```bat
+   install.bat
+   ```
+   *This will automatically create a `.venv`, install the package in editable mode, and download the Playwright Chromium browser.*
 
 ### 2. Startup
 
