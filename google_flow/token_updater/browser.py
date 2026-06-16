@@ -1224,6 +1224,75 @@ class BrowserManager:
                 logger.error(f"[{profile['name']}] failed to start: {e}")
                 return False
 
+    async def launch_for_login_ui(
+        self,
+        profile_id: int | None = None,
+        *,
+        profile_dir: str | None = None,
+    ) -> bool:
+        async with self._lock:
+            await self._close_active()
+
+            if profile_id is not None:
+                profile = await profile_db.get_profile(profile_id)
+                if not profile:
+                    logger.error(f"Profile {profile_id} does not exist")
+                    return False
+                resolved_dir = self._get_profile_dir(profile_id)
+            elif profile_dir is not None:
+                resolved_dir = os.path.abspath(profile_dir)
+                profile = {
+                    "id": None,
+                    "name": os.path.basename(resolved_dir.rstrip(r"\/")),
+                    "login_account": None,
+                    "login_password": None,
+                    "proxy_enabled": False,
+                    "proxy_url": None,
+                    "connection_token_override": None,
+                    "is_logged_in": 0,
+                }
+            else:
+                logger.error("Either profile_id or profile_dir must be provided")
+                return False
+
+            try:
+                if not self._playwright:
+                    await self.start()
+
+                # ok = await self._ensure_vnc_stack()
+                # if not ok:
+                #     logger.error(f"[{profile['name']}] VNC service failed to start")
+                #     return False
+
+                os.makedirs(resolved_dir, exist_ok=True)
+                self._clean_locks(resolved_dir)  # Clean up lock files
+                proxy = await self._get_proxy(profile)
+
+                # Non-headless, for VNC login
+                self._active_context = await self._playwright.chromium.launch_persistent_context(
+                    user_data_dir=resolved_dir,
+                    headless=False,  # VNC visible
+                    viewport={"width": 1024, "height": 768},
+                    locale="en-US",
+                    channel="chrome",
+                    timezone_id="America/New_York",
+                    proxy=proxy,
+                    args=LOGIN_BROWSER_ARGS,
+                    ignore_default_args=["--enable-automation"],
+                )
+                self._active_profile_id = profile_id
+                self._active_profile_dir = resolved_dir
+
+                page = self._active_context.pages[0] if self._active_context.pages else await self._active_context.new_page()
+                await page.goto(config.labs_url, wait_until="domcontentloaded")
+
+                logger.info(f"[{profile['name']}] browser has been started, please log in via VNC")
+                return True
+
+            except Exception as e:
+                logger.error(f"[{profile['name']}] failed to start: {e}")
+                return False
+
     async def close_browser(
         self,
         profile_id: int | None = None,
