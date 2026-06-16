@@ -107,6 +107,7 @@ class PlaywrightCaptchaProvider(CaptchaProvider):
                 "--disable-blink-features=AutomationControlled",
                 "--no-default-browser-check",
                 "--disable-dev-shm-usage",
+                '--window-position=-32000,-32000'
             ],
         )
         self._context = await self._browser.new_context(
