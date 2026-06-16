@@ -1,83 +1,23 @@
 # Flow Image Local API & Programmatic SDK (Unified)
 
-[![PyPI Version](https://img.shields.io/pypi/v/google-flow.svg)](https://pypi.org/project/google-flow/)
 [![Python Version](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
 Arabic Version: [README-ar.md](./README-ar.md) | Architecture Details: [ARCHITECTURE-ar.md](./ARCHITECTURE-ar.md)
 
-This repository provides a unified local deployment of Google Flow image generation, exposed via an **OpenAI-compatible HTTP API** and a **high-level programmatic Python SDK**.
+This repository provides a unified local deployment of Google Flow image generation, combining several core tools into one unified library. It can be used as a programmatic Python SDK or deployed as a local OpenAI-compatible HTTP API server.
 
 ---
 
-## 🌟 Key Features
+## 🗺️ Architectural Structure
 
-1. **Guided Setup (`/setup`)**: A user-friendly web interface that opens automatically, detects Google Flow login states, and synchronizes tokens without manual copy-pasting.
-2. **Integrated Token Updater**: A background scheduling service that keeps session tokens alive across multiple profiles, supporting proxy isolation for each profile to prevent footprint leaks.
-3. **In-Process Captcha Solver**: Resolves reCAPTCHA challenges directly within the same Python process via Playwright/nodriver, eliminating separate bridge servers or port configurations.
-4. **Programmatic SDK (`FlowSDK`)**: A clean, thread-safe context manager to embed Google Flow image generation directly into other Python applications.
-5. **OpenAI-Compatible Endpoints**: Seamlessly connects to any third-party AI UI client (e.g., Cherry Studio, Next Chat) using standard `URL`, `API Key`, and `Model` configurations.
+The project is divided into **4 core modules** that handle different aspects of the service:
 
----
-
-## 🚀 Quick Start
-
-### 1. Installation & Setup
-
-Choose one of the following methods:
-
-#### 📦 Method A: Install via PyPI (Recommended for SDK & Global CLI)
-This is the easiest way to use the library programmatically or run the API/CLI globally:
-```bash
-pip install google-flow
-```
-Once installed, you can use the global CLI commands directly:
-* **Start API Server**: `google-flow-api`
-* **Run CLI**: `google-flow --help`
-
-#### 🛠️ Method B: Local Clone & Setup (Recommended for Development)
-If you want to run the server locally with a dedicated virtual environment and quick-launch script:
-1. Clone the repository and navigate to the directory.
-2. Double-click the installer:
-   ```bat
-   install.bat
-   ```
-   *This will automatically create a `.venv`, install the package in editable mode, and download the Playwright Chromium browser.*
-
-### 2. Startup
-
-Double-click the launcher:
-```bat
-start-flow-api.bat
-```
-*This starts the API server on port `8787` and automatically opens the setup interface in your browser.*
-
-### 3. Complete Setup
-1. Log in to Google Flow on the browser window that opens.
-2. Wait for the setup page (`http://127.0.0.1:8787/setup`) to detect the active session.
-3. Copy the generated API URL, Key, and Model ID displayed on the screen.
-
----
-
-## 📡 API Reference
-
-### Connection Details
-* **Base URL**: `http://127.0.0.1:8787/v1`
-* **Default API Key**: `flow-local-key`
-
-### Endpoints
-* `POST /v1/images/generations` - Text-to-Image generation
-* `POST /v1/images/edits` - Image-to-Image generation (watercolor, sketch, etc.)
-* `GET /v1/models` - List available models and aspect ratios
-* `GET /health` - Health check status
-* `GET /setup` - Configuration wizard
-
----
-
-## 🐍 Programmatic Python SDK Usage
-
-You can import and use the SDK directly inside your own Python projects:
-
+### 📦 Part 1: Programmatic Python SDK (`FlowSDK`)
+The core Python SDK allows you to embed Google Flow image generation directly into other applications without network bridges or separate servers. It features:
+* **Thread-Safe Context Isolation**: `async with FlowSDK(...)` isolates configuration changes.
+* **Direct Token & Profile Selectors**: Support for direct token inputs or automatic profile-based configuration querying from the database.
+* **Usage Example**:
 ```python
 import asyncio
 from google_flow import FlowSDK
@@ -108,30 +48,66 @@ if __name__ == "__main__":
 
 ---
 
-## 📁 Repository Structure
+### 🌐 Part 2: OpenAI-Compatible HTTP API
+Exposes the image generation engine as a standard OpenAI-compatible REST API.
+* **Compatibility**: Directly pluggable into third-party AI interfaces like Cherry Studio or Next Chat.
+* **Interactive Dashboard (`/setup`)**: An automated web wizard that opens upon startup, helping you log in, detect session tokens, and manage settings.
+* **Quick Start**:
+  1. Double-click `install.bat` to setup the environment.
+  2. Double-click `start-flow-api.bat` to launch the API server.
+  3. Complete the interactive setup on `http://127.0.0.1:8787/setup`.
+* **Endpoints**:
+  * `POST /v1/images/generations` - Text-to-Image
+  * `POST /v1/images/edits` - Image-to-Image
+  * `GET /v1/models` - List models
+  * `GET /setup` - Interactive setup wizard
+
+---
+
+### 🔄 Part 3: Automated Token Updater Daemon
+A background updater service that ensures session tokens remain fresh and valid.
+* **Keep-Alive Scheduling**: Uses `APScheduler` to run periodic background validation of account tokens.
+* **Login Methods**: Supports silent protocol-based updates and interactive browser updates (opening a temporary browser window if Google requires human validation).
+* **Proxy Isolation**: Supports configuring separate proxy servers per account profile to prevent footprint leaks.
+
+---
+
+### 🔑 Part 4: In-Process Captcha Solving Service
+Resolves Google Flow's reCAPTCHA challenges dynamically within the same Python process.
+* **No External Bridge Needed**: Integrates directly with the browser runtime via Playwright/nodriver.
+* **Resident Browser Tabs**: Re-uses open browser tabs to drastically reduce cold start times and resource consumption by up to 60%.
+
+---
+
+## 📁 Repository Directory Map
 
 ```text
 flow-image-cli-local-api/
 ├── google_flow/              # Unified core package
-│   ├── api/               # FastAPI OpenAI web server & static dashboard
-│   ├── captcha/           # In-process captcha provider integrations
-│   ├── captcha_service/   # Integrated reCAPTCHA crawler (nodriver/playwright)
-│   ├── token_updater/     # Automated session renewal daemon
-│   ├── core/              # Programmatic SDK (FlowSDK) & API client
-│   └── utils/             # Shared parsing, DB, and proxy utilities
-├── examples/              # Programmatic usage examples
-├── release-package/       # Scripts to build clean distribution zip packages
-├── install.bat            # One-click installer for Windows
-├── start-flow-api.bat     # One-click launcher for Windows
-├── API_USAGE.md           # API endpoints & cURL request examples
+│   ├── api/                  # Part 2: FastAPI OpenAI web server & dashboard
+│   ├── captcha/              # Part 4: In-process captcha provider integrations
+│   ├── captcha_service/      # Part 4: Integrated reCAPTCHA crawler (nodriver/playwright)
+│   ├── token_updater/        # Part 3: Automated session renewal daemon
+│   ├── core/                 # Part 1: Programmatic SDK (FlowSDK)
+│   └── utils/                # Shared parsing, DB, and proxy utilities
+├── examples/                 # Programmatic usage examples
+├── release-package/          # Scripts to build clean distribution zip packages
+├── install.bat               # Installer for Windows
+├── start-flow-api.bat        # Launcher for Windows
+├── API_USAGE.md              # API endpoints & cURL request examples
 └── README.md
 ```
 
-## 📦 Building a Release
+---
 
-To share a clean distribution folder (without `.git`, `.venv`, or local output folders) with friends or clients:
-1. Run `release-package\build-release-package.bat`
-2. Share the generated zip file located at `release-package\dist\flow-image-cli-local-api-v1.0.0.zip`
+## 📚 References & Heritage
+
+This unified project incorporates and builds upon the following original repositories:
+* **Captcha Service Module**: [flow_captcha_service](https://github.com/genz27/flow_captcha_service)
+* **Token Updater Module**: [flow2api_tupdater](https://github.com/genz27/flow2api_tupdater)
+* **Original CLI & Local API Codebase**: [flow-image-cli-local-api](https://github.com/cdm16888/flow-image-cli-local-api)
+
+---
 
 ## 📝 License
 
