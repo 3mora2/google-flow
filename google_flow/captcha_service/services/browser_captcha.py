@@ -2870,6 +2870,9 @@ class TokenBrowser:
 
             await self._capture_page_fingerprint(page)
 
+            # Warm up page with human mouse moves/scroll to bypass bot detection on first load
+            await self._warm_native_page_before_execute(page)
+
             execute_started = time.perf_counter()
             execute_timeout_seconds = self._execute_timeout_seconds(fallback=30.0)
             execute_script_timeout_ms = self._execute_script_timeout_ms(fallback=30.0)
