@@ -8,9 +8,15 @@ support for TOML files and environment variable overrides.
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
-import tomli
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import importlib
+    tomllib = importlib.import_module("tomli")
+
 from pydantic import BaseModel, Field
 
 from google_flow.captcha.base import CaptchaProvider, NullCaptchaProvider
@@ -90,7 +96,7 @@ class AppConfig(BaseModel):
         if config_file.exists():
             try:
                 with open(config_file, "rb") as f:
-                    data = tomli.load(f)
+                    data = tomllib.load(f)
 
                 # Flow section
                 if "flow" in data:

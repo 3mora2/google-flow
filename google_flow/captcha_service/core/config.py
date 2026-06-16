@@ -5,7 +5,13 @@ import os
 from pathlib import Path
 from typing import Any
 
-import tomli
+import sys
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import importlib
+    tomllib = importlib.import_module("tomli")
 
 from google_flow.utils.parsing import parse_bool as _as_bool
 from google_flow.constants import RECAPTCHA_SITE_KEY
@@ -269,7 +275,7 @@ class Config:
         if not self._config_path.exists():
             return {}
         raw_text = self._config_path.read_text(encoding="utf-8-sig")
-        parsed = tomli.loads(raw_text)
+        parsed = tomllib.loads(raw_text)
         if not isinstance(parsed, dict):
             return {}
         return parsed

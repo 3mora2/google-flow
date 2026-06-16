@@ -49,3 +49,4 @@ data/
 temp_repos/
 scratch/
 
+uv.lock
