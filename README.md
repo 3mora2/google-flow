@@ -23,12 +23,6 @@ This repository provides a unified local deployment of Google Flow image generat
 
 ### 1. Installation
 
-#### Option A: Install from PyPI (Recommended for SDK usage)
-```bash
-pip install google-flow
-```
-
-#### Option B: Local Setup & Server Dashboard
 Double-click the installer:
 ```bat
 install.bat
