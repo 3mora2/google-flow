@@ -1488,11 +1488,16 @@ class TokenBrowser:
 
         keepalive_page = await self._shared_context.new_page()
         with contextlib.suppress(Exception):
-            await keepalive_page.goto("about:blank", wait_until="load", timeout=5000)
+            # await keepalive_page.goto("about:blank", wait_until="load", timeout=5000)
+            await keepalive_page.goto("https://labs.google/fx/tools/flow/project/", wait_until="load", timeout=5000)
         self._shared_keepalive_page = keepalive_page
         debug_logger.log_info(
             f"[BrowserCaptcha] Token-{self.token_id} keepalive page created"
         )
+        debug_logger.log_info(
+            f"[BrowserCaptcha] Token-{self.token_id} open google flow"
+        )
+
         return keepalive_page
 
     def _build_ready_page_key(self, project_id: str, website_key: str) -> str:
