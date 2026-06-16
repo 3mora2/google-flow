@@ -87,9 +87,9 @@ def _run_pip_install(package: str, use_mirror: bool = False) -> bool:
         return False
 
 
-def _run_playwright_install(use_mirror: bool = False) -> bool:
-    """Install playwright chromium browser"""
-    cmd = [sys.executable, '-m', 'playwright', 'install', 'chromium']
+def _run_playwright_install(browser_type: str = "chromium", use_mirror: bool = False) -> bool:
+    """Install playwright browser (chrome or chromium)"""
+    cmd = [sys.executable, '-m', 'playwright', 'install', browser_type]
     env = os.environ.copy()
 
     if use_mirror:
@@ -97,18 +97,18 @@ def _run_playwright_install(use_mirror: bool = False) -> bool:
         env['PLAYWRIGHT_DOWNLOAD_HOST'] = 'https://npmmirror.com/mirrors/playwright'
 
     try:
-        debug_logger.log_info("[BrowserCaptcha] Installing chromium browser...")
-        print("[BrowserCaptcha] Installing chromium browser...")
+        debug_logger.log_info(f"[BrowserCaptcha] Installing {browser_type} browser...")
+        print(f"[BrowserCaptcha] Installing {browser_type} browser...")
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=600, env=env)
         if result.returncode == 0:
-            debug_logger.log_info("[BrowserCaptcha] ✅ chromium browser installed successfully")
-            print("[BrowserCaptcha] ✅ chromium browser installed successfully")
+            debug_logger.log_info(f"[BrowserCaptcha] ✅ {browser_type} browser installed successfully")
+            print(f"[BrowserCaptcha] ✅ {browser_type} browser installed successfully")
             return True
         else:
-            debug_logger.log_warning(f"[BrowserCaptcha] chromium installation failed: {result.stderr[:200]}")
+            debug_logger.log_warning(f"[BrowserCaptcha] {browser_type} installation failed: {result.stderr[:200]}")
             return False
     except Exception as e:
-        debug_logger.log_warning(f"[BrowserCaptcha] chromium installation exception: {e}")
+        debug_logger.log_warning(f"[BrowserCaptcha] {browser_type} installation exception: {e}")
         return False
 
 
@@ -139,46 +139,98 @@ def _ensure_playwright_installed() -> bool:
     return False
 
 
-def _ensure_browser_installed() -> bool:
-    """Make sure chromium browser is installed"""
+def _is_chrome_installed() -> bool:
+    """Check if Google Chrome is installed in standard paths or via Playwright"""
+    # 1. Check standard paths first (instant)
+    if sys.platform.startswith("win"):
+        paths = [
+            os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
+        ]
+    elif sys.platform == "darwin":
+        paths = [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        ]
+    else:  # Linux
+        paths = [
+            "/usr/bin/google-chrome",
+            "/usr/bin/google-chrome-stable",
+            "/usr/bin/chrome",
+        ]
+    if any(os.path.exists(p) for p in paths):
+        return True
+
+    # 2. Fallback to attempting a headless launch with channel="chrome"
     try:
         detect_script = (
             "from playwright.sync_api import sync_playwright\n"
             "with sync_playwright() as p:\n"
-            "    print(p.chromium.executable_path or '')\n"
+            "    try:\n"
+            "        b = p.chromium.launch(headless=True, channel='chrome')\n"
+            "        b.close()\n"
+            "        print('chrome_installed')\n"
+            "    except Exception:\n"
+            "        pass\n"
         )
-        env = os.environ.copy()
-        env.setdefault("PLAYWRIGHT_BROWSERS_PATH", os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "0") or "0")
         result = subprocess.run(
             [sys.executable, "-c", detect_script],
             capture_output=True,
             text=True,
-            timeout=60,
-            env=env,
+            timeout=15,
         )
-        browser_path = (result.stdout or "").strip().splitlines()
-        browser_path = browser_path[-1].strip() if browser_path else ""
-        if result.returncode == 0 and browser_path and os.path.exists(browser_path):
-            debug_logger.log_info(f"[BrowserCaptcha] chromium browser installed: {browser_path}")
-            return True
-    except Exception as e:
-        debug_logger.log_info(f"[BrowserCaptcha] Error detecting browser: {e}")
+        return "chrome_installed" in (result.stdout or "")
+    except Exception:
+        return False
 
-    debug_logger.log_info("[BrowserCaptcha] The chromium browser is not installed and will start to be installed automatically...")
-    print("[BrowserCaptcha] The chromium browser is not installed and will start to be installed automatically...")
+
+def _ensure_browser_installed(browser_type: str = "chromium") -> bool:
+    """Make sure specified browser (chrome or chromium) is installed"""
+    browser_type = browser_type.lower().strip()
+    if browser_type == "chrome":
+        if _is_chrome_installed():
+            debug_logger.log_info("[BrowserCaptcha] chrome browser is already installed")
+            return True
+    else:
+        # Default/chromium detection
+        try:
+            detect_script = (
+                "from playwright.sync_api import sync_playwright\n"
+                "with sync_playwright() as p:\n"
+                "    print(p.chromium.executable_path or '')\n"
+            )
+            env = os.environ.copy()
+            env.setdefault("PLAYWRIGHT_BROWSERS_PATH", os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "0") or "0")
+            result = subprocess.run(
+                [sys.executable, "-c", detect_script],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                env=env,
+            )
+            browser_path = (result.stdout or "").strip().splitlines()
+            browser_path = browser_path[-1].strip() if browser_path else ""
+            if result.returncode == 0 and browser_path and os.path.exists(browser_path):
+                debug_logger.log_info(f"[BrowserCaptcha] chromium browser installed: {browser_path}")
+                return True
+        except Exception as e:
+            debug_logger.log_info(f"[BrowserCaptcha] Error detecting browser: {e}")
+
+    debug_logger.log_info(f"[BrowserCaptcha] The {browser_type} browser is not installed and will start to be installed automatically...")
+    print(f"[BrowserCaptcha] The {browser_type} browser is not installed and will start to be installed automatically...")
 
     # Try the official source first
-    if _run_playwright_install(use_mirror=False):
+    if _run_playwright_install(browser_type=browser_type, use_mirror=False):
         return True
 
     # The official source failed, try domestic mirroring
-    debug_logger.log_info("[BrowserCaptcha] Official source installation failed, try domestic mirror...")
-    print("[BrowserCaptcha] Official source installation failed, try domestic mirror...")
-    if _run_playwright_install(use_mirror=True):
+    debug_logger.log_info(f"[BrowserCaptcha] Official source installation failed for {browser_type}, try domestic mirror...")
+    print(f"[BrowserCaptcha] Official source installation failed for {browser_type}, try domestic mirror...")
+    if _run_playwright_install(browser_type=browser_type, use_mirror=True):
         return True
 
-    debug_logger.log_error("[BrowserCaptcha] ❌ The automatic installation of chromium browser failed, please install it manually: python -m playwright install chromium")
-    print("[BrowserCaptcha] ❌ The automatic installation of chromium browser failed, please install it manually: python -m playwright install chromium")
+    debug_logger.log_error(f"[BrowserCaptcha] ❌ The automatic installation of {browser_type} browser failed, please install it manually: python -m playwright install {browser_type}")
+    print(f"[BrowserCaptcha] ❌ The automatic installation of {browser_type} browser failed, please install it manually: python -m playwright install {browser_type}")
     return False
 
 
@@ -206,7 +258,8 @@ else:
             from playwright.async_api import BrowserContext, Route, async_playwright
             PLAYWRIGHT_AVAILABLE = True
             # Check and install browser
-            _ensure_browser_installed()
+            browser_type = os.environ.get("FLOW_BROWSER_TYPE") or os.environ.get("FCS_BROWSER_TYPE") or "chromium"
+            _ensure_browser_installed(browser_type)
         except ImportError as e:
             debug_logger.log_error(f"[BrowserCaptcha] playwright import failed: {e}")
             print(f"[BrowserCaptcha] ❌ playwright import failed: {e}")
